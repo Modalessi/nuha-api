@@ -24,12 +24,15 @@ func main() {
 	ADDRESS := os.Getenv("ADDRESS")
 	utils.AssertOn(ADDRESS != "", "something went wrong when reading 'ADDRESS' env variable")
 
+	JWTSecret := os.Getenv("JWT_SECRET")
+	utils.AssertOn(JWTSecret != "", "somethign went wrong when reading 'JWT_SECRET' env variable")
+
 	dbConnection, err := sql.Open("postgres", DB_URL)
 	utils.Assert(err, "error connecting to database")
 
 	database := database.New(dbConnection)
 
-	nuhaServer := nuha.NewServer(database)
+	nuhaServer := nuha.NewServer(database, JWTSecret)
 
 	fmt.Println("server is now running...")
 	http.ListenAndServe("localhost"+ADDRESS, nuhaServer.GetServer())

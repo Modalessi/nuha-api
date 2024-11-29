@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/Modalessi/nuha-api/internal/database"
 	"github.com/Modalessi/nuha-api/internal/models"
@@ -46,10 +47,25 @@ func (uf *UserFactory) CreateNewUser(name string, email string, password string)
 
 	newUserParams := database.CreateUserParams{
 		Name:     name,
-		Email:    email,
+		Email:    strings.ToLower(email),
 		Password: string(hashedPassword),
 	}
 	user, err := uf.db.CreateUser(uf.ctx, newUserParams)
+	if err != nil {
+		return nil, err
+	}
+
+	return models.UserFromDBObject(&user), nil
+}
+
+func (uf *UserFactory) GetUserByEmail(email string) (*models.User, error) {
+
+	email = strings.ToLower(email)
+	user, err := uf.db.GetUserByEmail(uf.ctx, email)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+
 	if err != nil {
 		return nil, err
 	}
