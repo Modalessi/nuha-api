@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/Modalessi/nuha-api/internal/database"
-	"github.com/Modalessi/nuha-api/internal/handlers"
 )
 
 type NuhaServer struct {
@@ -15,21 +14,18 @@ type NuhaServer struct {
 func NewServer(db *database.Queries) *NuhaServer {
 	serverMux := http.NewServeMux()
 
-	addRoutes(serverMux)
-
-	return &NuhaServer{
+	ns := NuhaServer{
 		Server: serverMux,
 		DB:     db,
 	}
+
+	serverMux.HandleFunc("GET /healthz", checkHealth)
+	serverMux.HandleFunc("POST /register", InjectNuhaServer(&ns, register))
+
+	return &ns
+
 }
 
-func addRoutes(serv *http.ServeMux) {
-
-	// all the app routes
-	serv.HandleFunc("GET /healthz", handlers.CheckHealth)
-
-}
-
-func (ns *NuhaServer) GetHandler() http.Handler {
+func (ns *NuhaServer) GetServer() http.Handler {
 	return ns.Server
 }

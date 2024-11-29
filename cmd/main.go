@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/Modalessi/nuha-api/internal/database"
-	"github.com/Modalessi/nuha-api/internal/nuha"
+	"github.com/Modalessi/nuha-api/internal/nuha-api"
 	"github.com/Modalessi/nuha-api/internal/utils"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -32,5 +32,5 @@ func main() {
 	nuhaServer := nuha.NewServer(database)
 
 	fmt.Println("server is now running...")
-	http.ListenAndServe("localhost"+ADDRESS, nuhaServer.GetHandler())
+	http.ListenAndServe("localhost"+ADDRESS, nuhaServer.GetServer())
 }

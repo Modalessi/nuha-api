@@ -1,4 +1,4 @@
-package handlers
+package nuha
 
 import (
 	"net/http"
