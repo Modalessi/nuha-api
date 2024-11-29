@@ -26,6 +26,8 @@ func NewServer(db *database.Queries, jwtSecret string) *NuhaServer {
 	serverMux.HandleFunc("GET /login", InjectNuhaServer(&ns, login))
 	serverMux.HandleFunc("POST /register", InjectNuhaServer(&ns, register))
 
+	serverMux.HandleFunc("GET /protected", Authorized(InjectNuhaServer(&ns, protected), ns.JWTSecret))
+
 	return &ns
 
 }

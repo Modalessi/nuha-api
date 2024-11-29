@@ -26,11 +26,11 @@ func login(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
 	user, err := uf.GetUserByEmail(loginData.Email)
 	if err != nil {
 		respondWithError(w, 500, SERVER_ERROR)
-		return nil
+		return err
 	}
 
 	if user == nil {
-		respondWithError(w, 404, CreateEntityDoesNotExistError("User"))
+		respondWithError(w, 404, EntityDoesNotExistError("User"))
 		return nil
 	}
 
@@ -40,7 +40,7 @@ func login(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	// create jwt tokenw
+	// create jwt token
 	token, err := internal.NewJWTTokenWithClaims(user.Name, user.Email, ns.JWTSecret)
 	if err != nil {
 		respondWithError(w, 500, SERVER_ERROR)
