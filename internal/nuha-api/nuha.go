@@ -4,19 +4,22 @@ import (
 	"net/http"
 
 	"github.com/Modalessi/nuha-api/internal/database"
+	"github.com/Modalessi/nuha-api/internal/judgeAPI"
 )
 
 type NuhaServer struct {
 	Server    *http.ServeMux
+	JudgeAPI  *judgeAPI.JudgeAPI
 	DB        *database.Queries
 	JWTSecret string
 }
 
-func NewServer(db *database.Queries, jwtSecret string) *NuhaServer {
+func NewServer(ja *judgeAPI.JudgeAPI, db *database.Queries, jwtSecret string) *NuhaServer {
 	serverMux := http.NewServeMux()
 
 	ns := NuhaServer{
 		Server:    serverMux,
+		JudgeAPI:  ja,
 		DB:        db,
 		JWTSecret: jwtSecret,
 	}
@@ -27,6 +30,7 @@ func NewServer(db *database.Queries, jwtSecret string) *NuhaServer {
 	serverMux.HandleFunc("POST /register", InjectNuhaServer(&ns, register))
 
 	serverMux.HandleFunc("GET /protected", Authorized(InjectNuhaServer(&ns, protected), ns.JWTSecret))
+	serverMux.HandleFunc("POST /submit", Authorized(InjectNuhaServer(&ns, submitSolution), ns.JWTSecret))
 
 	return &ns
 

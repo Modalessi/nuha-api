@@ -1,4 +1,4 @@
-package judge_api
+package judgeAPI
 
 type Testcase struct {
 	stdin          string

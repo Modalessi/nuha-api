@@ -14,6 +14,7 @@ func login(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
+	defer r.Body.Close()
 
 	loginData := loginSchema{}
 	err := json.NewDecoder(r.Body).Decode(&loginData)

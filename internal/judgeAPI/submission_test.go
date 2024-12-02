@@ -1,4 +1,4 @@
-package judge_api
+package judgeAPI
 
 import (
 	"bytes"

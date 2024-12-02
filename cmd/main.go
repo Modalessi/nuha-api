@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/Modalessi/nuha-api/internal/database"
+	"github.com/Modalessi/nuha-api/internal/judgeAPI"
 	"github.com/Modalessi/nuha-api/internal/nuha-api"
 	"github.com/Modalessi/nuha-api/internal/utils"
 	"github.com/joho/godotenv"
@@ -32,7 +33,14 @@ func main() {
 
 	database := database.New(dbConnection)
 
-	nuhaServer := nuha.NewServer(database, JWTSecret)
+	rapidAPIKey := os.Getenv("X_RAPIDAPI_KEY")
+	utils.AssertOn(rapidAPIKey != "", "somethign went wrong when reading 'X_RAPIDAPI_KEY' env variable")
+
+	rapidAPIHost := os.Getenv("X_RAPIDAPI_HOST")
+	utils.AssertOn(rapidAPIKey != "", "somethign went wrong when reading 'X_RAPIDAPI_HOST' env variable")
+
+	judgeAPI := judgeAPI.NewJudgeAPI(rapidAPIKey, rapidAPIHost)
+	nuhaServer := nuha.NewServer(judgeAPI, database, JWTSecret)
 
 	fmt.Println("server is now running...")
 	http.ListenAndServe("localhost"+ADDRESS, nuhaServer.GetServer())
