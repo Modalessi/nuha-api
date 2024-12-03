@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"regexp"
 
+	"github.com/Modalessi/nuha-api/internal"
 	"github.com/Modalessi/nuha-api/internal/factories"
 )
 
@@ -49,7 +50,18 @@ func register(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// return the data
-	respondWithJson(w, 201, user)
+
+	response := struct {
+		UserName  string `json:"user_name"`
+		UserEmail string `json:"user_email"`
+		CreatedAt string `json:"created_at"`
+	}{
+		UserName:  user.Name,
+		UserEmail: user.Email,
+		CreatedAt: user.CreatedAt.String(),
+	}
+
+	respondWithJson(w, 201, &internal.JsonWrapper{Data: response})
 	return nil
 }
 
