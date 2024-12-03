@@ -29,3 +29,22 @@ competitive programming
 - memory limit float
 - created_at
 - updated_at
+
+
+
+some users
+
+-- normal user
+{
+    "email": "mohammed@email.com",
+    "password": "Moh12345"
+
+}
+
+
+-- admin
+{
+    "name": "the boss",
+    "email": "admin@email.com",
+    "password": "Adm12345"
+}

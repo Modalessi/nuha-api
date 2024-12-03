@@ -40,7 +40,11 @@ func main() {
 	utils.AssertOn(rapidAPIKey != "", "somethign went wrong when reading 'X_RAPIDAPI_HOST' env variable")
 
 	judgeAPI := judgeAPI.NewJudgeAPI(rapidAPIKey, rapidAPIHost)
-	nuhaServer := nuha.NewServer(judgeAPI, database, JWTSecret)
+
+	adminEmail := os.Getenv("ADMIN_EMAIL")
+	utils.AssertOn(adminEmail != "", "somethign went wrong when reading 'ADMIN_EMAIL' env variable")
+
+	nuhaServer := nuha.NewServer(judgeAPI, database, JWTSecret, adminEmail)
 
 	fmt.Println("server is now running...")
 	http.ListenAndServe("localhost"+ADDRESS, nuhaServer.GetServer())

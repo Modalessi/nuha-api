@@ -23,6 +23,7 @@ var (
 	WRONG_CREDINTALS_ERROR     = NuhaError{Code: 400, Message: "email or password, one of them is wrong"}
 	USER_ALREADY_EXIST_ERROR   = NuhaError{Code: 400, Message: "this user already exist"}
 	AUTHORIZATION_HEADER_ERROR = NuhaError{Code: 401, Message: "no authorization header"}
+	NOT_AUTHORIZED_ERROR       = NuhaError{Code: 403, Message: "you are not authorized to do this operation"}
 	INVALID_TOKEN_ERROR        = NuhaError{Code: 401, Message: "invalid token, please check"}
 )
 
