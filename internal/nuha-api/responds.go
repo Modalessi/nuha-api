@@ -8,10 +8,19 @@ import (
 
 func respondWithError(w http.ResponseWriter, code int, err error) {
 	w.Header().Add("Content-Type", "application/json")
-	data := err.Error()
+
+	response := struct {
+		Result string `json:"result"`
+		Msg    string `json:"msg"`
+	}{
+		Result: "FAILED",
+		Msg:    err.Error(),
+	}
+
+	data := &internal.JsonWrapper{Data: response}
 
 	w.WriteHeader(code)
-	w.Write([]byte(data))
+	w.Write(data.JSON())
 }
 
 func respondWithJson(w http.ResponseWriter, code int, payload internal.Jsonable) {
