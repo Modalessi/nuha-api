@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -120,6 +121,27 @@ func (pr *ProblemRepository) GetProblemInfo(problemID string) (*database.Problem
 	}
 
 	return &problem, nil
+}
+
+func (pr *ProblemRepository) GetProblemDescription(problemID string) (string, error) {
+
+	path := fmt.Sprintf("problems/%s/description.md", problemID)
+
+	getObjectParams := &s3.GetObjectInput{
+		Bucket: aws.String(pr.bucketName),
+		Key:    aws.String(path),
+	}
+	result, err := pr.s3Client.GetObject(pr.ctx, getObjectParams)
+	if err != nil {
+		return "", fmt.Errorf("error while getting description from s3: %w", err)
+	}
+
+	descriptionBytes, err := io.ReadAll(result.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading s3 result body for discription: %w", err)
+	}
+
+	return string(descriptionBytes), nil
 }
 
 func (pr *ProblemRepository) GetProblems(offset int32, limit int32) ([]database.Problem, error) {

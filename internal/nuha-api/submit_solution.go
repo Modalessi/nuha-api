@@ -29,6 +29,8 @@ func submitSolution(ns *NuhaServer, w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 
+	// TODO: make sure problem exist
+
 	submission := judgeAPI.NewSubmission(submissionData.Code, judgeAPI.JudgeLanguage(submissionData.Language))
 	token, err := ns.JudgeAPI.PostSubmission(submission)
 	if err != nil {
