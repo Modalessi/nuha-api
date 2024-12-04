@@ -68,24 +68,24 @@ func (q *Queries) CreateProblem(ctx context.Context, arg CreateProblemParams) (P
 }
 
 const getProblemByID = `-- name: GetProblemByID :one
-SELECT (
-    id,
-    title,
-    description_path,
-    testcases_path,
-    tags,
-    time_limit,
-    memory_limit,
-    created_at,
-    updated_at
-) FROM problems WHERE id = $1
+SELECT id, title, description_path, testcases_path, tags, time_limit, memory_limit, created_at, updated_at FROM problems WHERE id = $1
 `
 
-func (q *Queries) GetProblemByID(ctx context.Context, id uuid.UUID) (interface{}, error) {
+func (q *Queries) GetProblemByID(ctx context.Context, id uuid.UUID) (Problem, error) {
 	row := q.db.QueryRowContext(ctx, getProblemByID, id)
-	var column_1 interface{}
-	err := row.Scan(&column_1)
-	return column_1, err
+	var i Problem
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.DescriptionPath,
+		&i.TestcasesPath,
+		pq.Array(&i.Tags),
+		&i.TimeLimit,
+		&i.MemoryLimit,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getProblems = `-- name: GetProblems :many

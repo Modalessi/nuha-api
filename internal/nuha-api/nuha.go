@@ -47,6 +47,7 @@ func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, s
 	serverMux.HandleFunc("POST /submit", authorized(withServer(&ns, submitSolution), ns.JWTSecret))
 
 	serverMux.HandleFunc("POST /problem", authorized(adminOnly(withServer(&ns, createProblem), adminEmail), ns.JWTSecret))
+	serverMux.HandleFunc("POST /testcase", authorized(adminOnly(withServer(&ns, addTestCases), adminEmail), ns.JWTSecret))
 
 	return &ns
 

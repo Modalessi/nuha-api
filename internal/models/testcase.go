@@ -8,7 +8,7 @@ import (
 
 type Testcase struct {
 	Stdin          string `json:"stdin"`
-	ExpectedOutput string `json:"stdout"`
+	ExpectedOutput string `json:"expected_output"`
 }
 
 func NewTestCase(stdin string, expectedOutput string) *Testcase {

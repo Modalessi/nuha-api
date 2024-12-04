@@ -19,20 +19,9 @@ func withServer(ns *NuhaServer, handler NuhaHandler) http.HandlerFunc {
 
 		if err != nil {
 			log.Printf("Error handling %s %s: %v", r.Method, r.URL.Path, err)
-
-			if !isHeaderWritten(w) {
-				respondWithError(w, http.StatusInternalServerError, SERVER_ERROR)
-				log.Printf("handler did not respond with a proper error")
-			}
-
 		}
 
 		log.Printf("Completed %s %s in %v", r.Method, r.URL.Path, duration)
 
 	}
-}
-
-func isHeaderWritten(w http.ResponseWriter) bool {
-	rw, ok := w.(interface{ Written() bool })
-	return ok && rw.Written()
 }

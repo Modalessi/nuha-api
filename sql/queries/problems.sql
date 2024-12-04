@@ -13,17 +13,7 @@ SELECT (
 
 
 -- name: GetProblemByID :one
-SELECT (
-    id,
-    title,
-    description_path,
-    testcases_path,
-    tags,
-    time_limit,
-    memory_limit,
-    created_at,
-    updated_at
-) FROM problems WHERE id = $1;
+SELECT * FROM problems WHERE id = $1;
 
 
 -- name: CreateProblem :one

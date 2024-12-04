@@ -4,12 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/Modalessi/nuha-api/internal/database"
 	"github.com/Modalessi/nuha-api/internal/models"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/google/uuid"
 )
 
 type ProblemRepository struct {
@@ -101,4 +104,90 @@ func (pr *ProblemRepository) StoreNewProblem(p *models.Problem) (*database.Probl
 	}
 
 	return &dbProblem, nil
+}
+
+func (pr *ProblemRepository) GetProblem(problemID string) (*database.Problem, error) {
+	id, err := uuid.Parse(problemID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid problem ID format %q: %w", problemID, err)
+	}
+
+	problem, err := pr.dbQueries.GetProblemByID(pr.ctx, id)
+
+	if err != nil {
+		return nil, fmt.Errorf("database error checking problem %s: %w", id, err)
+	}
+
+	return &problem, nil
+}
+
+func (pr *ProblemRepository) AddNewTestCases(problemId string, testcases ...models.Testcase) error {
+
+	testcasesPath := fmt.Sprintf("problems/%s/testcases", problemId)
+	nextTestcaseNumber, err := getNextTestcaseNumber(*pr.s3Client, pr.bucketName, pr.ctx, problemId)
+	if err != nil {
+		return fmt.Errorf("error while getting last testcase number: %w", err)
+	}
+
+	for _, tc := range testcases {
+		inputPath := fmt.Sprintf("%s/%d.in", testcasesPath, nextTestcaseNumber)
+		newInputParams := &s3.PutObjectInput{
+			Bucket: aws.String(pr.bucketName),
+			Key:    aws.String(inputPath),
+			Body:   strings.NewReader(tc.Stdin),
+		}
+		_, err := pr.s3Client.PutObject(pr.ctx, newInputParams)
+		if err != nil {
+			return fmt.Errorf("uploading testcase input %d to S3: %w", nextTestcaseNumber, err)
+		}
+
+		outputPath := fmt.Sprintf("%s/%d.out", testcasesPath, nextTestcaseNumber)
+		newOutputParams := &s3.PutObjectInput{
+			Bucket: aws.String(pr.bucketName),
+			Key:    aws.String(outputPath),
+			Body:   strings.NewReader(tc.ExpectedOutput),
+		}
+		_, err = pr.s3Client.PutObject(pr.ctx, newOutputParams)
+		if err != nil {
+			return fmt.Errorf("uploading testcase output %d to S3: %w", nextTestcaseNumber, err)
+		}
+
+		nextTestcaseNumber += 1
+	}
+
+	return nil
+}
+
+func getNextTestcaseNumber(s3Client s3.Client, bucketName string, ctx context.Context, problemId string) (int, error) {
+	testcasesPath := fmt.Sprintf("problems/%s/testcases/", problemId)
+
+	listObjectsParams := &s3.ListObjectsV2Input{
+		Bucket: aws.String(bucketName),
+		Prefix: aws.String(testcasesPath),
+	}
+	result, err := s3Client.ListObjectsV2(ctx, listObjectsParams)
+	if err != nil {
+		return 0, fmt.Errorf("error when getting object from bucket: %w", err)
+	}
+
+	maxNum := 0
+	for _, obj := range result.Contents {
+		if !strings.HasSuffix(*obj.Key, ".in") {
+			continue
+		}
+
+		filename := filepath.Base(*obj.Key)
+		numStr := strings.TrimSuffix(filename, ".in")
+
+		num, err := strconv.Atoi(numStr)
+		if err != nil {
+			continue
+		}
+
+		if num > maxNum {
+			maxNum = num
+		}
+	}
+
+	return maxNum + 1, nil
 }
