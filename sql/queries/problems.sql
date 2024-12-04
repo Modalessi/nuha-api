@@ -1,15 +1,5 @@
 -- name: GetProblems :many
-SELECT (
-    id,
-    title,
-    description_path,
-    testcases_path,
-    tags,
-    time_limit,
-    memory_limit,
-    created_at,
-    updated_at
-) FROM problems;
+SELECT * FROM problems OFFSET $1 LIMIT $2;
 
 
 -- name: GetProblemByID :one
@@ -20,6 +10,7 @@ SELECT * FROM problems WHERE id = $1;
 INSERT INTO problems (
     id,
     title,
+    difficulty,
     description_path,
     testcases_path,
     tags,
@@ -32,5 +23,6 @@ INSERT INTO problems (
     $4,
     $5,
     $6,
-    $7
+    $7,
+    $8
 ) RETURNING *;

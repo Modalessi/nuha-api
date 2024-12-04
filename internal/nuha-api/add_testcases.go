@@ -28,7 +28,7 @@ func addTestCases(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error 
 	pr := repositories.NewProblemRepository(ns.S3.Client, ns.DB, ns.DBQueries, r.Context(), ns.S3.BucketName)
 
 	// check if problem exist
-	problemDb, err := pr.GetProblem(problemId)
+	problemDb, err := pr.GetProblemInfo(problemId)
 	if err != nil {
 		respondWithError(w, 400, err)
 		return err

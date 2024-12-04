@@ -16,6 +16,7 @@ const createProblem = `-- name: CreateProblem :one
 INSERT INTO problems (
     id,
     title,
+    difficulty,
     description_path,
     testcases_path,
     tags,
@@ -28,13 +29,15 @@ INSERT INTO problems (
     $4,
     $5,
     $6,
-    $7
-) RETURNING id, title, description_path, testcases_path, tags, time_limit, memory_limit, created_at, updated_at
+    $7,
+    $8
+) RETURNING id, title, difficulty, description_path, testcases_path, tags, time_limit, memory_limit, created_at, updated_at
 `
 
 type CreateProblemParams struct {
 	ID              uuid.UUID
 	Title           string
+	Difficulty      string
 	DescriptionPath string
 	TestcasesPath   string
 	Tags            []string
@@ -46,6 +49,7 @@ func (q *Queries) CreateProblem(ctx context.Context, arg CreateProblemParams) (P
 	row := q.db.QueryRowContext(ctx, createProblem,
 		arg.ID,
 		arg.Title,
+		arg.Difficulty,
 		arg.DescriptionPath,
 		arg.TestcasesPath,
 		pq.Array(arg.Tags),
@@ -56,6 +60,7 @@ func (q *Queries) CreateProblem(ctx context.Context, arg CreateProblemParams) (P
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
+		&i.Difficulty,
 		&i.DescriptionPath,
 		&i.TestcasesPath,
 		pq.Array(&i.Tags),
@@ -68,7 +73,7 @@ func (q *Queries) CreateProblem(ctx context.Context, arg CreateProblemParams) (P
 }
 
 const getProblemByID = `-- name: GetProblemByID :one
-SELECT id, title, description_path, testcases_path, tags, time_limit, memory_limit, created_at, updated_at FROM problems WHERE id = $1
+SELECT id, title, difficulty, description_path, testcases_path, tags, time_limit, memory_limit, created_at, updated_at FROM problems WHERE id = $1
 `
 
 func (q *Queries) GetProblemByID(ctx context.Context, id uuid.UUID) (Problem, error) {
@@ -77,6 +82,7 @@ func (q *Queries) GetProblemByID(ctx context.Context, id uuid.UUID) (Problem, er
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
+		&i.Difficulty,
 		&i.DescriptionPath,
 		&i.TestcasesPath,
 		pq.Array(&i.Tags),
@@ -89,32 +95,38 @@ func (q *Queries) GetProblemByID(ctx context.Context, id uuid.UUID) (Problem, er
 }
 
 const getProblems = `-- name: GetProblems :many
-SELECT (
-    id,
-    title,
-    description_path,
-    testcases_path,
-    tags,
-    time_limit,
-    memory_limit,
-    created_at,
-    updated_at
-) FROM problems
+SELECT id, title, difficulty, description_path, testcases_path, tags, time_limit, memory_limit, created_at, updated_at FROM problems OFFSET $1 LIMIT $2
 `
 
-func (q *Queries) GetProblems(ctx context.Context) ([]interface{}, error) {
-	rows, err := q.db.QueryContext(ctx, getProblems)
+type GetProblemsParams struct {
+	Offset int32
+	Limit  int32
+}
+
+func (q *Queries) GetProblems(ctx context.Context, arg GetProblemsParams) ([]Problem, error) {
+	rows, err := q.db.QueryContext(ctx, getProblems, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []interface{}
+	var items []Problem
 	for rows.Next() {
-		var column_1 interface{}
-		if err := rows.Scan(&column_1); err != nil {
+		var i Problem
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Difficulty,
+			&i.DescriptionPath,
+			&i.TestcasesPath,
+			pq.Array(&i.Tags),
+			&i.TimeLimit,
+			&i.MemoryLimit,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
-		items = append(items, column_1)
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

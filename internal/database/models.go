@@ -13,6 +13,7 @@ import (
 type Problem struct {
 	ID              uuid.UUID
 	Title           string
+	Difficulty      string
 	DescriptionPath string
 	TestcasesPath   string
 	Tags            []string

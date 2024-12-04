@@ -3,6 +3,7 @@
 CREATE TABLE problems (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(255) NOT NULL,
+    difficulty VARCHAR(255) NOT NULL,
     description_path VARCHAR(255) NOT NULL,
     testcases_path VARCHAR(255) NOT NULL,
     tags TEXT[] NOT NULL,

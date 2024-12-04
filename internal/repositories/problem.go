@@ -41,6 +41,7 @@ func (pr *ProblemRepository) StoreNewProblem(p *models.Problem) (*database.Probl
 	newProblemParams := database.CreateProblemParams{
 		ID:              p.ID,
 		Title:           p.Title,
+		Difficulty:      p.Difficulty,
 		DescriptionPath: descriptionPath,
 		TestcasesPath:   testcasesPath,
 		Tags:            p.Tags,
@@ -106,7 +107,7 @@ func (pr *ProblemRepository) StoreNewProblem(p *models.Problem) (*database.Probl
 	return &dbProblem, nil
 }
 
-func (pr *ProblemRepository) GetProblem(problemID string) (*database.Problem, error) {
+func (pr *ProblemRepository) GetProblemInfo(problemID string) (*database.Problem, error) {
 	id, err := uuid.Parse(problemID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid problem ID format %q: %w", problemID, err)
@@ -119,6 +120,19 @@ func (pr *ProblemRepository) GetProblem(problemID string) (*database.Problem, er
 	}
 
 	return &problem, nil
+}
+
+func (pr *ProblemRepository) GetProblems(offset int32, limit int32) ([]database.Problem, error) {
+	getProblemsParams := database.GetProblemsParams{
+		Offset: 0,
+		Limit:  20,
+	}
+	problems, err := pr.dbQueries.GetProblems(pr.ctx, getProblemsParams)
+	if err != nil {
+		return nil, fmt.Errorf("database error getting problems: %w", err)
+	}
+
+	return problems, nil
 }
 
 func (pr *ProblemRepository) AddNewTestCases(problemId string, testcases ...models.Testcase) error {
