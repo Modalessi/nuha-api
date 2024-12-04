@@ -10,6 +10,18 @@ import (
 	"github.com/google/uuid"
 )
 
+type Problem struct {
+	ID              uuid.UUID
+	Title           string
+	DescriptionPath string
+	TestcasesPath   string
+	Tags            []string
+	TimeLimit       float64
+	MemoryLimit     float64
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
 type User struct {
 	ID        uuid.UUID
 	Name      string

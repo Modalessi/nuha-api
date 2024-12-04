@@ -2,11 +2,13 @@ package nuha
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"regexp"
 
 	"github.com/Modalessi/nuha-api/internal"
-	"github.com/Modalessi/nuha-api/internal/factories"
+	"github.com/Modalessi/nuha-api/internal/models"
+	"github.com/Modalessi/nuha-api/internal/repositories"
 )
 
 func register(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
@@ -29,10 +31,10 @@ func register(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	uf := factories.NewUserFactory(r.Context(), ns.DB)
+	ur := repositories.NewUserRespository(r.Context(), ns.DB)
 	// check if user already exist
 
-	exist, err := uf.DoesUserExistWithEmail(registerData.Email)
+	exist, err := ur.DoesUserExistWithEmail(registerData.Email)
 	if err != nil {
 		respondWithError(w, 500, SERVER_ERROR)
 		return err
@@ -43,8 +45,15 @@ func register(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	// add user
-	user, err := uf.CreateNewUser(registerData.Name, registerData.Email, registerData.Password)
+	// create user
+	newUser, err := models.CreateUser(registerData.Name, registerData.Email, registerData.Password)
+	if err != nil {
+		respondWithError(w, 400, fmt.Errorf("password is too long"))
+		return err
+	}
+
+	// store user
+	dbUser, err := ur.StoreNewUser(newUser)
 	if err != nil {
 		respondWithError(w, 500, err)
 	}
@@ -56,9 +65,9 @@ func register(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
 		UserEmail string `json:"user_email"`
 		CreatedAt string `json:"created_at"`
 	}{
-		UserName:  user.Name,
-		UserEmail: user.Email,
-		CreatedAt: user.CreatedAt.String(),
+		UserName:  dbUser.Name,
+		UserEmail: dbUser.Email,
+		CreatedAt: dbUser.CreatedAt.String(),
 	}
 
 	respondWithJson(w, 201, &internal.JsonWrapper{Data: response})
@@ -77,6 +86,7 @@ func isValidCredentials(email string, pw string) bool {
 	}
 
 	// check password with regex (8 chars)
+	// TO-DO: password must not be longer than 72 characters. see: https://pkg.go.dev/golang.org/x/crypto/bcrypt#pkg-variables
 	validPasswordRegex := `^[A-Za-z0-9]{8,}$`
 
 	isValidPassword, err := regexp.MatchString(validPasswordRegex, pw)

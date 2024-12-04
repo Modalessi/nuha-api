@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Modalessi/nuha-api/internal"
-	"github.com/Modalessi/nuha-api/internal/factories"
+	"github.com/Modalessi/nuha-api/internal/repositories"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -23,8 +23,8 @@ func login(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	uf := factories.NewUserFactory(r.Context(), ns.DB)
-	user, err := uf.GetUserByEmail(loginData.Email)
+	ur := repositories.NewUserRespository(r.Context(), ns.DB)
+	user, err := ur.GetUserByEmail(loginData.Email)
 	if err != nil {
 		respondWithError(w, 500, SERVER_ERROR)
 		return err
