@@ -31,7 +31,7 @@ func register(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	ur := repositories.NewUserRespository(r.Context(), ns.DB)
+	ur := repositories.NewUserRespository(r.Context(), ns.DBQueries)
 	// check if user already exist
 
 	exist, err := ur.DoesUserExistWithEmail(registerData.Email)

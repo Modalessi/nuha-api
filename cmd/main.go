@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -10,6 +11,8 @@ import (
 	"github.com/Modalessi/nuha-api/internal/judgeAPI"
 	"github.com/Modalessi/nuha-api/internal/nuha-api"
 	"github.com/Modalessi/nuha-api/internal/utils"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
@@ -28,10 +31,10 @@ func main() {
 	JWTSecret := os.Getenv("JWT_SECRET")
 	utils.AssertOn(JWTSecret != "", "somethign went wrong when reading 'JWT_SECRET' env variable")
 
-	dbConnection, err := sql.Open("postgres", DB_URL)
+	db, err := sql.Open("postgres", DB_URL)
 	utils.Assert(err, "error connecting to database")
 
-	database := database.New(dbConnection)
+	dbQueries := database.New(db)
 
 	rapidAPIKey := os.Getenv("X_RAPIDAPI_KEY")
 	utils.AssertOn(rapidAPIKey != "", "somethign went wrong when reading 'X_RAPIDAPI_KEY' env variable")
@@ -44,7 +47,17 @@ func main() {
 	adminEmail := os.Getenv("ADMIN_EMAIL")
 	utils.AssertOn(adminEmail != "", "somethign went wrong when reading 'ADMIN_EMAIL' env variable")
 
-	nuhaServer := nuha.NewServer(judgeAPI, database, JWTSecret, adminEmail)
+	awsConfig, err := config.LoadDefaultConfig(context.TODO())
+	utils.Assert(err, "error creating aws config")
+
+	problemSetBucketName := os.Getenv("AWS_PROBLEMSET_BUCKET")
+	utils.AssertOn(problemSetBucketName != "", "somethign went wrong when reading 'AWS_PROBLEMSET_BUCKET' env variable")
+
+	s3client := s3.NewFromConfig(awsConfig)
+
+	nuhaS3Config := nuha.NewS3Config(s3client, problemSetBucketName)
+
+	nuhaServer := nuha.NewServer(judgeAPI, db, dbQueries, nuhaS3Config, JWTSecret, adminEmail)
 
 	fmt.Println("server is now running...")
 	http.ListenAndServe("localhost"+ADDRESS, nuhaServer.GetServer())

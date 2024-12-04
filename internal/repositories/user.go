@@ -10,19 +10,19 @@ import (
 )
 
 type UserRespository struct {
-	db  *database.Queries
-	ctx context.Context
+	dbQuereis *database.Queries
+	ctx       context.Context
 }
 
 func NewUserRespository(ctx context.Context, db *database.Queries) *UserRespository {
 	return &UserRespository{
-		db:  db,
-		ctx: ctx,
+		dbQuereis: db,
+		ctx:       ctx,
 	}
 }
 
 func (ur *UserRespository) DoesUserExistWithEmail(email string) (bool, error) {
-	_, err := ur.db.GetUserByEmail(ur.ctx, email)
+	_, err := ur.dbQuereis.GetUserByEmail(ur.ctx, email)
 
 	if err == sql.ErrNoRows {
 		return false, nil
@@ -43,7 +43,7 @@ func (uf *UserRespository) StoreNewUser(u *models.User) (*database.User, error) 
 		Password: u.Password,
 	}
 
-	user, err := uf.db.CreateUser(uf.ctx, newUserParams)
+	user, err := uf.dbQuereis.CreateUser(uf.ctx, newUserParams)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (uf *UserRespository) StoreNewUser(u *models.User) (*database.User, error) 
 func (ur *UserRespository) GetUserByEmail(email string) (*database.User, error) {
 
 	email = strings.ToLower(email)
-	user, err := ur.db.GetUserByEmail(ur.ctx, email)
+	user, err := ur.dbQuereis.GetUserByEmail(ur.ctx, email)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

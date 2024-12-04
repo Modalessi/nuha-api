@@ -2,11 +2,13 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/Modalessi/nuha-api/internal/database"
 	"github.com/Modalessi/nuha-api/internal/utils"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type User struct {
@@ -15,6 +17,20 @@ type User struct {
 	Email     string    `json:"email"`
 	Password  string    `json:"password"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+func CreateUser(name string, email string, password string) (*User, error) {
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("error genrating hashed password")
+	}
+
+	return &User{
+		Name:     name,
+		Email:    email,
+		Password: string(hashedPassword),
+	}, nil
 }
 
 func UserFromDBObject(u *database.User) *User {

@@ -23,7 +23,7 @@ func login(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	ur := repositories.NewUserRespository(r.Context(), ns.DB)
+	ur := repositories.NewUserRespository(r.Context(), ns.DBQueries)
 	user, err := ur.GetUserByEmail(loginData.Email)
 	if err != nil {
 		respondWithError(w, 500, SERVER_ERROR)

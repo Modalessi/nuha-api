@@ -3,6 +3,7 @@ package judgeAPI
 import (
 	"encoding/json"
 
+	"github.com/Modalessi/nuha-api/internal/models"
 	"github.com/Modalessi/nuha-api/internal/utils"
 )
 
@@ -110,13 +111,13 @@ func (s *Submission) SetCallbackURL(url string) {
 	s.CallbackURL = url
 }
 
-func (s *Submission) GenerateBatchFromTestCases(testcases ...Testcase) SubmissionBatch {
+func (s *Submission) GenerateBatchFromTestCases(testcases ...models.Testcase) SubmissionBatch {
 	batch := SubmissionBatch{}
 
 	for _, tc := range testcases {
 		ns := *s
-		ns.SetStdin(tc.stdin)
-		ns.SetExpectedOutput(tc.expectedOutput)
+		ns.SetStdin(tc.Stdin)
+		ns.SetExpectedOutput(tc.ExpectedOutput)
 
 		batch = append(batch, ns)
 	}

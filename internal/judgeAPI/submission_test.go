@@ -3,6 +3,8 @@ package judgeAPI
 import (
 	"bytes"
 	"testing"
+
+	"github.com/Modalessi/nuha-api/internal/models"
 )
 
 func TestGenerateBatch(t *testing.T) {
@@ -11,9 +13,9 @@ func TestGenerateBatch(t *testing.T) {
 
 	submission := NewSubmission(sourceCode, PYTHON_311)
 
-	tc1 := NewTestCase("5 6", "11")
-	tc2 := NewTestCase("1 2", "3")
-	tc3 := NewTestCase("9 1", "10")
+	tc1 := models.NewTestCase("5 6", "11")
+	tc2 := models.NewTestCase("1 2", "3")
+	tc3 := models.NewTestCase("9 1", "10")
 
 	batch := submission.GenerateBatchFromTestCases(*tc1, *tc2, *tc3)
 
@@ -61,9 +63,9 @@ func TestGenerateBatchJson(t *testing.T) {
 
 	submission := NewSubmission(sourceCode, PYTHON_311)
 
-	tc1 := NewTestCase("5 6", "11")
-	tc2 := NewTestCase("1 2", "3")
-	tc3 := NewTestCase("9 1", "10")
+	tc1 := models.NewTestCase("5 6", "11")
+	tc2 := models.NewTestCase("1 2", "3")
+	tc3 := models.NewTestCase("9 1", "10")
 
 	batch := submission.GenerateBatchFromTestCases(*tc1, *tc2, *tc3)
 
