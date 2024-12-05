@@ -255,6 +255,49 @@ func (pr *ProblemRepository) DeleteProblem(problemId string) (*database.Problem,
 	return &deletedProblem, nil
 }
 
+func (pr *ProblemRepository) UpdateProblem(problem *models.Problem) error {
+
+	tx, err := pr.db.BeginTx(pr.ctx, nil)
+	if err != nil {
+		return fmt.Errorf("error starting transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	txq := pr.dbQueries.WithTx(tx)
+
+	updateProblemParams := database.UpdateProblemParams{
+		ID:          problem.ID,
+		Title:       problem.Title,
+		Difficulty:  problem.Difficulty,
+		Tags:        problem.Tags,
+		TimeLimit:   problem.Timelimit,
+		MemoryLimit: problem.Memorylimit,
+	}
+	_, err = txq.UpdateProblem(pr.ctx, updateProblemParams)
+	if err != nil {
+		return fmt.Errorf("error updating problem in database: %w", err)
+	}
+
+	// update description in s3
+	descriptionPath := fmt.Sprintf("problems/%s/description.md", problem.ID.String())
+	newObjectParams := &s3.PutObjectInput{
+		Bucket: aws.String(pr.bucketName),
+		Key:    aws.String(descriptionPath),
+		Body:   strings.NewReader(problem.Description),
+	}
+	_, err = pr.s3Client.PutObject(pr.ctx, newObjectParams)
+	if err != nil {
+		return fmt.Errorf("updating description in S3: %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("error commiting transaction to database: %w", err)
+	}
+
+	return nil
+}
+
 func getNextTestcaseNumber(s3Client s3.Client, bucketName string, ctx context.Context, problemId string) (int, error) {
 	testcasesPath := fmt.Sprintf("problems/%s/testcases/", problemId)
 

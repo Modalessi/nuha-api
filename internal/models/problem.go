@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Modalessi/nuha-api/internal/database"
 	"github.com/Modalessi/nuha-api/internal/utils"
 	"github.com/google/uuid"
 )
@@ -22,8 +23,17 @@ type Problem struct {
 	UpdatedAt   time.Time
 }
 
-func ProblemFromDBObject() {
-
+func ProblemFromDBObject(p *database.Problem) *Problem {
+	return &Problem{
+		ID:          p.ID,
+		Title:       p.Title,
+		Difficulty:  p.Difficulty,
+		Tags:        p.Tags,
+		Timelimit:   p.TimeLimit,
+		Memorylimit: p.MemoryLimit,
+		CreatedAt:   p.CreatedAt,
+		UpdatedAt:   p.UpdatedAt,
+	}
 }
 
 func CreateNewProblem(title string, description string, difficulty string, tags []string) (*Problem, error) {
@@ -42,6 +52,23 @@ func CreateNewProblem(title string, description string, difficulty string, tags 
 		Timelimit:   1,
 		Memorylimit: 128000,
 	}, nil
+}
+
+func (p *Problem) SetTitle(title string) {
+	p.Title = title
+}
+
+func (p *Problem) SetDifficulty(difficulty string) error {
+	if difficulty != "HARD" && difficulty != "MEDIUM" && difficulty != "EASY" {
+		return fmt.Errorf("difficutly must be one of these (HARD, MEDIUM, EASY)")
+	}
+
+	p.Difficulty = difficulty
+	return nil
+}
+
+func (p *Problem) SetDescription(description string) {
+	p.Description = description
 }
 
 func (p *Problem) AddTags(tags []string) {

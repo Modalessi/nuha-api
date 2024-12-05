@@ -14,7 +14,7 @@ competitive programming
   - get problems list [DONE]
   - get problem [DONE]
   - admin DELETE problem [DONE]
-  - admin EDIT problem
+  - admin EDIT problem [DONE]
 
 
 
