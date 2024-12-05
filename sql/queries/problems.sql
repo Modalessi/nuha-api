@@ -26,3 +26,18 @@ INSERT INTO problems (
     $7,
     $8
 ) RETURNING *;
+
+
+-- name: DeleteProblem :one
+DELETE FROM problems WHERE id = $1 RETURNING *;
+
+
+-- name: UpdateProblem :one
+UPDATE problems SET
+    title = $2,
+    difficulty = $3,
+    tags = $4,
+    time_limit = $5,
+    memory_limit = $6,
+    updated_at = now()
+WHERE id = $1 RETURNING *;

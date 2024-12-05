@@ -72,6 +72,28 @@ func (q *Queries) CreateProblem(ctx context.Context, arg CreateProblemParams) (P
 	return i, err
 }
 
+const deleteProblem = `-- name: DeleteProblem :one
+DELETE FROM problems WHERE id = $1 RETURNING id, title, difficulty, description_path, testcases_path, tags, time_limit, memory_limit, created_at, updated_at
+`
+
+func (q *Queries) DeleteProblem(ctx context.Context, id uuid.UUID) (Problem, error) {
+	row := q.db.QueryRowContext(ctx, deleteProblem, id)
+	var i Problem
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Difficulty,
+		&i.DescriptionPath,
+		&i.TestcasesPath,
+		pq.Array(&i.Tags),
+		&i.TimeLimit,
+		&i.MemoryLimit,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getProblemByID = `-- name: GetProblemByID :one
 SELECT id, title, difficulty, description_path, testcases_path, tags, time_limit, memory_limit, created_at, updated_at FROM problems WHERE id = $1
 `
@@ -135,4 +157,49 @@ func (q *Queries) GetProblems(ctx context.Context, arg GetProblemsParams) ([]Pro
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateProblem = `-- name: UpdateProblem :one
+UPDATE problems SET
+    title = $2,
+    difficulty = $3,
+    tags = $4,
+    time_limit = $5,
+    memory_limit = $6,
+    updated_at = now()
+WHERE id = $1 RETURNING id, title, difficulty, description_path, testcases_path, tags, time_limit, memory_limit, created_at, updated_at
+`
+
+type UpdateProblemParams struct {
+	ID          uuid.UUID
+	Title       string
+	Difficulty  string
+	Tags        []string
+	TimeLimit   float64
+	MemoryLimit float64
+}
+
+func (q *Queries) UpdateProblem(ctx context.Context, arg UpdateProblemParams) (Problem, error) {
+	row := q.db.QueryRowContext(ctx, updateProblem,
+		arg.ID,
+		arg.Title,
+		arg.Difficulty,
+		pq.Array(arg.Tags),
+		arg.TimeLimit,
+		arg.MemoryLimit,
+	)
+	var i Problem
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Difficulty,
+		&i.DescriptionPath,
+		&i.TestcasesPath,
+		pq.Array(&i.Tags),
+		&i.TimeLimit,
+		&i.MemoryLimit,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

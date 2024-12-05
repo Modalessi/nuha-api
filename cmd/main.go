@@ -59,6 +59,7 @@ func main() {
 
 	nuhaServer := nuha.NewServer(judgeAPI, db, dbQueries, nuhaS3Config, JWTSecret, adminEmail)
 
+	// TODO: gracful shut down for SIGINT, SIGTERM
 	fmt.Println("server is now running...")
 	http.ListenAndServe("localhost"+ADDRESS, nuhaServer.GetServer())
 }

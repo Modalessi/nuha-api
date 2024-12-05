@@ -13,6 +13,7 @@ import (
 	"github.com/Modalessi/nuha-api/internal/models"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/google/uuid"
 )
 
@@ -192,6 +193,66 @@ func (pr *ProblemRepository) AddNewTestCases(problemId string, testcases ...mode
 	}
 
 	return nil
+}
+
+func (pr *ProblemRepository) DeleteProblem(problemId string) (*database.Problem, error) {
+
+	tx, err := pr.db.BeginTx(pr.ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error starting transaction: %w", err)
+	}
+
+	defer tx.Rollback()
+
+	txq := pr.dbQueries.WithTx(tx)
+
+	id, err := uuid.Parse(problemId)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing problem id please give a valid id: %w", err)
+	}
+
+	// delete from db
+	deletedProblem, err := txq.DeleteProblem(pr.ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("error deleting problem from db with id %q: %w", id, err)
+	}
+
+	//delete from s3
+	problemPrefix := fmt.Sprintf("problems/%s/", problemId)
+	listObjectsParams := &s3.ListObjectsV2Input{
+		Bucket: aws.String(pr.bucketName),
+		Prefix: aws.String(problemPrefix),
+	}
+	result, err := pr.s3Client.ListObjectsV2(pr.ctx, listObjectsParams)
+	if err != nil {
+		return nil, fmt.Errorf("error listing problem objects in s3: %w", err)
+	}
+
+	objectsToDelete := make([]types.ObjectIdentifier, len(result.Contents))
+	for i, object := range result.Contents {
+		objectsToDelete[i] = types.ObjectIdentifier{Key: object.Key}
+	}
+
+	deleteObjectParams := &s3.DeleteObjectsInput{
+		Bucket: aws.String(pr.bucketName),
+		Delete: &types.Delete{Objects: objectsToDelete},
+	}
+
+	deletedResult, err := pr.s3Client.DeleteObjects(pr.ctx, deleteObjectParams)
+	if err != nil {
+		return nil, fmt.Errorf("error deleting problem objects from s3: %w", err)
+	}
+
+	if len(deletedResult.Errors) > 0 {
+		return nil, fmt.Errorf("failed to delete some objects from s3: %v", deletedResult.Errors)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("error committing transaction: %w", err)
+	}
+
+	return &deletedProblem, nil
 }
 
 func getNextTestcaseNumber(s3Client s3.Client, bucketName string, ctx context.Context, problemId string) (int, error) {

@@ -7,8 +7,14 @@ competitive programming
 ### To do
 
 - register, sign in. [DONE]
+- restore password method
 - send submissions [MOSTLY DONE]
-- CRUD operatiosn for problems (admin only) 
+- CRUD operatiosn for problems 
+  - admin create [DONE]
+  - get problems list [DONE]
+  - get problem [DONE]
+  - admin DELETE problem [DONE]
+  - admin EDIT problem
 
 
 
