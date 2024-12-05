@@ -38,6 +38,29 @@ competitive programming
 
 
 
+### Submission
+- id
+- problemId (problems.id foreign key)
+- user_id (user.id foreign key)
+- language_id int
+- source_code string
+- status text (PENDING, ACCEPETED, WRONG ANSWER...)
+- max_time
+- max_memory
+- created_at
+
+
+### Submission Results
+- id 
+- submission_id (submission.id foriegn key)
+- test_case_input string (used to determin which test case failed later)
+- judge_token string
+- time_used float64
+- memory_used float64
+- judge_respones JSONB
+- created_at timestamp
+
+
 some users
 
 -- normal user

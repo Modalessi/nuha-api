@@ -25,7 +25,8 @@ func TestGenerateBatch(t *testing.T) {
 		Stdin:          "5 6",
 		ExpectedOutput: "11",
 	}
-	got1 := batch[0]
+
+	got1 := (*batch)[0]
 
 	if want1 != got1 {
 		t.Fatalf("got %v, wanted %v", got1, want1)
@@ -37,7 +38,7 @@ func TestGenerateBatch(t *testing.T) {
 		Stdin:          "1 2",
 		ExpectedOutput: "3",
 	}
-	got2 := batch[1]
+	got2 := (*batch)[1]
 
 	if want2 != got2 {
 		t.Fatalf("got %v, wanted %v", got2, want2)
@@ -49,7 +50,7 @@ func TestGenerateBatch(t *testing.T) {
 		Stdin:          "9 1",
 		ExpectedOutput: "10",
 	}
-	got3 := batch[2]
+	got3 := (*batch)[2]
 
 	if want3 != got3 {
 		t.Fatalf("got %v, wanted %v", got3, want3)
@@ -71,11 +72,11 @@ func TestGenerateBatchJson(t *testing.T) {
 
 	batchJson := batch.JSON()
 
-	want := `[`
+	want := `{"submissions":[`
 	want += `{"source_code":"a, b = map(int, input().split()\nprint(a + b)","language_id":92,"stdin":"5 6","expected_output":"11"},`
 	want += `{"source_code":"a, b = map(int, input().split()\nprint(a + b)","language_id":92,"stdin":"1 2","expected_output":"3"},`
 	want += `{"source_code":"a, b = map(int, input().split()\nprint(a + b)","language_id":92,"stdin":"9 1","expected_output":"10"}`
-	want += `]`
+	want += `]}`
 
 	if !bytes.Equal(batchJson, []byte(want)) {
 		t.Fatalf("wanted %v\ngot %v", string(want), string(batchJson))
