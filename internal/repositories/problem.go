@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -156,6 +157,79 @@ func (pr *ProblemRepository) GetProblems(offset int32, limit int32) ([]database.
 	}
 
 	return problems, nil
+}
+
+func (pr *ProblemRepository) GetTestCases(problemId string) ([]models.Testcase, error) {
+	testcasesPrefix := fmt.Sprintf("problems/%s/testcases/", problemId)
+
+	listObjectsParams := &s3.ListObjectsV2Input{
+		Bucket: aws.String(pr.bucketName),
+		Prefix: aws.String(testcasesPrefix),
+	}
+	result, err := pr.s3Client.ListObjectsV2(pr.ctx, listObjectsParams)
+	if err != nil {
+		return nil, fmt.Errorf("error listing problem objects in s3: %w", err)
+	}
+
+	testcases := make(map[string]models.Testcase, len(result.Contents))
+	for _, obj := range result.Contents {
+		// getting input file
+
+		if obj.Key == nil {
+			return nil, fmt.Errorf("error testcase key is somehow nil, WTF")
+		}
+
+		getObjectParams := &s3.GetObjectInput{
+			Bucket: aws.String(pr.bucketName),
+			Key:    obj.Key,
+		}
+		res, err := pr.s3Client.GetObject(pr.ctx, getObjectParams)
+		if err != nil {
+			return nil, fmt.Errorf("error getting input %v file from s3: %w", obj.Key, err)
+		}
+		defer res.Body.Close()
+
+		content, err := io.ReadAll(res.Body)
+		if err != nil {
+			return nil, fmt.Errorf("error reading input %v file from s3: %w", obj.Key, err)
+		}
+
+		fileName := filepath.Base(*obj.Key)
+		isInput := strings.HasSuffix(*obj.Key, ".in")
+		ext := ".in"
+		if !isInput {
+			ext = ".out"
+		}
+		testcaseNumber := strings.TrimSuffix(fileName, ext)
+		testcase := testcases[testcaseNumber]
+
+		if isInput {
+			testcase.Stdin = string(content)
+		} else {
+			testcase.ExpectedOutput = string(content)
+		}
+
+		testcases[testcaseNumber] = testcase
+
+	}
+
+	numbers := make([]string, 0, len(testcases))
+	for num := range testcases {
+		numbers = append(numbers, num)
+	}
+	sort.Strings(numbers)
+
+	testcasesFlattened := make([]models.Testcase, 0, len(testcases))
+	for _, num := range numbers {
+		tc := testcases[num]
+		if tc.Stdin == "" || tc.ExpectedOutput == "" {
+			return nil, fmt.Errorf("incomplete testcase found for number %s", num)
+		}
+		testcasesFlattened = append(testcasesFlattened, tc)
+	}
+
+	return testcasesFlattened, nil
+
 }
 
 func (pr *ProblemRepository) AddNewTestCases(problemId string, testcases ...models.Testcase) error {

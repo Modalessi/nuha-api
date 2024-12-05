@@ -111,7 +111,7 @@ func (s *Submission) SetCallbackURL(url string) {
 	s.CallbackURL = url
 }
 
-func (s *Submission) GenerateBatchFromTestCases(testcases ...models.Testcase) SubmissionBatch {
+func (s *Submission) GenerateBatchFromTestCases(testcases ...models.Testcase) *SubmissionBatch {
 	batch := SubmissionBatch{}
 
 	for _, tc := range testcases {
@@ -122,7 +122,7 @@ func (s *Submission) GenerateBatchFromTestCases(testcases ...models.Testcase) Su
 		batch = append(batch, ns)
 	}
 
-	return batch
+	return &batch
 }
 
 func (s *Submission) JSON() []byte {
@@ -132,7 +132,13 @@ func (s *Submission) JSON() []byte {
 }
 
 func (sb *SubmissionBatch) JSON() []byte {
-	data, err := json.Marshal(sb)
-	utils.Assert(err, "error converting submision struct to json")
+	wrapper := struct {
+		Submissions []Submission `json:"submissions"`
+	}{
+		Submissions: *sb,
+	}
+
+	data, err := json.Marshal(wrapper)
+	utils.Assert(err, "error converting submission struct to json")
 	return data
 }

@@ -1,11 +1,11 @@
 package judgeAPI
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/Modalessi/nuha-api/internal/utils"
 )
@@ -32,9 +32,11 @@ func NewJudgeAPI(apiKey string, host string) *JudgeAPI {
 func (j *JudgeAPI) PostSubmission(s *Submission) (string, error) {
 	postSubmissionURL := j.baseURL.JoinPath("submissions")
 
-	payload := strings.NewReader(string(s.JSON()))
+	payload := bytes.NewReader(s.JSON())
 	req, err := http.NewRequest("POST", postSubmissionURL.String(), payload)
-	utils.Assert(err, "error making submission request for judge zero")
+	if err != nil {
+		return "", fmt.Errorf("error making submission request for judge zero: %w", err)
+	}
 
 	req.Header.Add("x-rapidapi-key", j.apiKey)
 	req.Header.Add("x-rapidapi-host", j.host)
@@ -58,4 +60,41 @@ func (j *JudgeAPI) PostSubmission(s *Submission) (string, error) {
 	}
 
 	return resBody.Token, nil
+}
+
+func (j *JudgeAPI) PostBatchSubmission(bs *SubmissionBatch) ([]string, error) {
+	postBatchSubmissionURL := j.baseURL.JoinPath("submissions/batch")
+
+	payload := bytes.NewReader(bs.JSON())
+	req, err := http.NewRequest("POST", postBatchSubmissionURL.String(), payload)
+	if err != nil {
+		return nil, fmt.Errorf("error making batch submission request for judge zero: %w", err)
+	}
+
+	req.Header.Add("x-rapidapi-key", j.apiKey)
+	req.Header.Add("x-rapidapi-host", j.host)
+	req.Header.Add("Content-Type", "application/json")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("someting went wrong with judge zero sending batch submission request %w", err)
+	}
+	defer res.Body.Close()
+
+	type response struct {
+		Token string `json:"token"`
+	}
+
+	resBody := []response{}
+	err = json.NewDecoder(res.Body).Decode(&resBody)
+	if err != nil {
+		return nil, fmt.Errorf("someting went wrong while decoding judge zero sending batch submission response %w", err)
+	}
+
+	tokens := make([]string, 0, len(resBody))
+	for _, t := range resBody {
+		tokens = append(tokens, t.Token)
+	}
+
+	return tokens, nil
 }
