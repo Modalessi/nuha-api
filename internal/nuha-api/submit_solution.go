@@ -8,8 +8,12 @@ import (
 	"net/http"
 
 	"github.com/Modalessi/nuha-api/internal"
+	"github.com/Modalessi/nuha-api/internal/database"
 	"github.com/Modalessi/nuha-api/internal/judgeAPI"
+	"github.com/Modalessi/nuha-api/internal/models"
+	submissionsPL "github.com/Modalessi/nuha-api/internal/nuha-api/submissions_pipeline"
 	"github.com/Modalessi/nuha-api/internal/repositories"
+	"github.com/google/uuid"
 )
 
 func submitSolution(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
@@ -43,24 +47,60 @@ func submitSolution(ns *NuhaServer, w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 
+	// get user id
+	ur := repositories.NewUserRespository(r.Context(), ns.DBQueries)
+	userEmail, ok := r.Context().Value(userEmailKey).(string)
+	if !ok {
+		respondWithError(w, 500, SERVER_ERROR)
+		return fmt.Errorf("error getting user email from context")
+	}
+
+	user, err := ur.GetUserByEmail(userEmail)
+	if err != nil {
+		respondWithError(w, 404, EntityDoesNotExistError("USER"))
+		return err
+	}
+
 	testcases, err := pr.GetTestCases(problemId)
 	if err != nil {
 		respondWithError(w, 500, SERVER_ERROR)
 		return err
 	}
 
-	submission := judgeAPI.NewSubmission(submissionData.Code, judgeAPI.JudgeLanguage(submissionData.Language))
-	submission.SetCPUTimeLimit(problem.TimeLimit)
-	submission.SetMemoryLimit(problem.MemoryLimit)
+	// create the submiios here
+	submission := models.NewSubmission(problem.ID, user.ID, submissionData.Language, submissionData.Code)
 
-	submissionBatch := submission.GenerateBatchFromTestCases(testcases...)
-
-	tokens, err := ns.JudgeAPI.PostBatchSubmission(submissionBatch)
+	// store it here
+	createSubmissionParams := &database.CreateSubmissionParams{
+		ProblemID:  problem.ID,
+		UserID:     user.ID,
+		Language:   int32(submission.LanguageID),
+		SourceCode: submission.SourceCode,
+		Status:     string(submission.Status),
+	}
+	submissionDB, err := ns.DBQueries.CreateSubmission(r.Context(), *createSubmissionParams)
 	if err != nil {
 		respondWithError(w, 500, SERVER_ERROR)
-		return err
+		return fmt.Errorf("error creating submission in database: %w", err)
 	}
 
-	respondWithJson(w, 201, &internal.JsonWrapper{Data: tokens})
+	// give it to submision piplie line here
+	submissionJob := &submissionsPL.SubmissionJob{
+		SubmissionID: submissionDB.ID,
+		Language:     judgeAPI.JudgeLanguage(submissionDB.Language),
+		Code:         submissionDB.SourceCode,
+		Timelimit:    problem.TimeLimit,
+		MemoryLimit:  problem.MemoryLimit,
+		ProblemID:    problem.ID,
+		Testcases:    testcases,
+	}
+	ns.SubmissionsPL.Submit(submissionJob)
+
+	response := struct {
+		SubmissionID uuid.UUID `json:"submission_id"`
+	}{
+		SubmissionID: submissionDB.ID,
+	}
+	respondWithJson(w, 201, &internal.JsonWrapper{Data: response})
 	return nil
 }

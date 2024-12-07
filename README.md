@@ -8,7 +8,8 @@ competitive programming
 
 - register, sign in. [DONE]
 - restore password method
-- send submissions [MOSTLY DONE]
+- send submissions [DONE]
+- get submission [DONE]
 - CRUD operatiosn for problems 
   - admin create [DONE]
   - get problems list [DONE]
@@ -38,28 +39,73 @@ competitive programming
 
 
 
-### Submission
+#### Submission
 - id
 - problemId (problems.id foreign key)
 - user_id (user.id foreign key)
 - language_id int
 - source_code string
 - status text (PENDING, ACCEPETED, WRONG ANSWER...)
-- max_time
-- max_memory
 - created_at
 
 
-### Submission Results
+#### Submission Results
 - id 
 - submission_id (submission.id foriegn key)
-- test_case_input string (used to determin which test case failed later)
 - judge_token string
+- test_case_input string
+- stdout string
+- expected_output string
+- status string
 - time_used float64
 - memory_used float64
 - judge_respones JSONB
 - created_at timestamp
 
+
+
+
+
+### Submission flow
+
+- endpoint recives submissiosn (langauge, code, problemid)
+- create the submission
+- store it 
+- pass the submissionJobs to (submissionsPipeline)
+- return the submission id
+
+**SubmissionPipeline**
+a piple line that runs in the background
+takes a submission job and proccess in three steps
+
+
+submissionsChan                                                               resultsChan 
+----------------------->|send submssions to judge api, and take the tokens| ---------------->
+
+resultsChan                                                                  dbUpdateChan
+----------------------->|polling judge api, to get results for the tokens|------------------->
+
+dbUpdateChan
+------------------------>|store result from judge api to db|
+
+
+so we have three chanels
+- SubmissionChan
+- resultsChan
+- resultsChan
+
+and three background porccess 
+- submissionProcessor
+- resultProcessor
+- dbWriter
+
+
+
+
+
+
+
+- the frontend then can get the result using get_submission route
 
 some users
 

@@ -23,6 +23,32 @@ type Problem struct {
 	UpdatedAt       time.Time
 }
 
+type Submission struct {
+	ID         uuid.UUID
+	ProblemID  uuid.UUID
+	UserID     uuid.UUID
+	Language   int32
+	SourceCode string
+	Status     string
+	UpdatedAt  time.Time
+	CreatedAt  time.Time
+}
+
+type SubmissionResult struct {
+	ID             uuid.UUID
+	SubmissionID   uuid.UUID
+	JudgeToken     string
+	Stdin          string
+	Stdout         string
+	ExpectedOutput string
+	StatusID       int32
+	TimeUsed       string
+	MemoryUsed     float64
+	JudgeResponse  []byte
+	UpdatedAt      time.Time
+	CreatedAt      time.Time
+}
+
 type User struct {
 	ID        uuid.UUID
 	Name      string

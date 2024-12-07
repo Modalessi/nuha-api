@@ -6,17 +6,19 @@ import (
 
 	"github.com/Modalessi/nuha-api/internal/database"
 	"github.com/Modalessi/nuha-api/internal/judgeAPI"
+	submissionsPL "github.com/Modalessi/nuha-api/internal/nuha-api/submissions_pipeline"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 type NuhaServer struct {
-	Server     *http.ServeMux
-	JudgeAPI   *judgeAPI.JudgeAPI
-	DB         *sql.DB
-	DBQueries  *database.Queries
-	S3         *S3Config
-	JWTSecret  string
-	AdminEmail string
+	Server        *http.ServeMux
+	JudgeAPI      *judgeAPI.JudgeAPI
+	SubmissionsPL *submissionsPL.SubmissionsPipeline
+	DB            *sql.DB
+	DBQueries     *database.Queries
+	S3            *S3Config
+	JWTSecret     string
+	AdminEmail    string
 }
 
 type S3Config struct {
@@ -27,14 +29,17 @@ type S3Config struct {
 func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, s3config *S3Config, jwtSecret string, adminEmail string) *NuhaServer {
 	serverMux := http.NewServeMux()
 
+	submissionsPipeline := submissionsPL.NewSubmissionPipeline(ja, db, dbQuereis)
+
 	ns := NuhaServer{
-		Server:     serverMux,
-		JudgeAPI:   ja,
-		DB:         db,
-		DBQueries:  dbQuereis,
-		S3:         s3config,
-		JWTSecret:  jwtSecret,
-		AdminEmail: adminEmail,
+		Server:        serverMux,
+		JudgeAPI:      ja,
+		SubmissionsPL: submissionsPipeline,
+		DB:            db,
+		DBQueries:     dbQuereis,
+		S3:            s3config,
+		JWTSecret:     jwtSecret,
+		AdminEmail:    adminEmail,
 	}
 
 	serverMux.HandleFunc("GET /healthz", checkHealth)
@@ -45,6 +50,7 @@ func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, s
 	serverMux.HandleFunc("GET /protected", authorized(withServer(&ns, protected), ns.JWTSecret))
 
 	serverMux.HandleFunc("POST /submit", authorized(withServer(&ns, submitSolution), ns.JWTSecret))
+	serverMux.HandleFunc("GET /submit", authorized(withServer(&ns, getSubmission), ns.JWTSecret))
 
 	serverMux.HandleFunc("POST /problem", authorized(adminOnly(withServer(&ns, createProblem), adminEmail), ns.JWTSecret))
 	serverMux.HandleFunc("GET /problem", withServer(&ns, getProblem))
@@ -53,6 +59,7 @@ func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, s
 
 	serverMux.HandleFunc("POST /testcase", authorized(adminOnly(withServer(&ns, addTestCases), adminEmail), ns.JWTSecret))
 
+	ns.SubmissionsPL.Start()
 	return &ns
 
 }

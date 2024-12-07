@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/Modalessi/nuha-api/internal/utils"
 )
@@ -97,4 +98,40 @@ func (j *JudgeAPI) PostBatchSubmission(bs *SubmissionBatch) ([]string, error) {
 	}
 
 	return tokens, nil
+}
+
+func (j *JudgeAPI) GetBatchSubmissionsResult(tokens []string) ([]Submission, error) {
+	tokensQuery := strings.Join(tokens, ",")
+	postBatchSubmissionURL := j.baseURL.JoinPath("submissions/batch")
+	query := postBatchSubmissionURL.Query()
+	query.Add("tokens", tokensQuery)
+	query.Add("base64_encoded", "false")
+	query.Add("fields", "*")
+	postBatchSubmissionURL.RawQuery = query.Encode()
+
+	req, err := http.NewRequest("GET", postBatchSubmissionURL.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("error making get batch submission request for judge zero: %w", err)
+	}
+
+	req.Header.Add("x-rapidapi-key", j.apiKey)
+	req.Header.Add("x-rapidapi-host", j.host)
+	req.Header.Add("Content-Type", "application/json")
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("someting went wrong with judge zero sending get batch submission request %w", err)
+	}
+	defer res.Body.Close()
+
+	resultData := struct {
+		Submissions []Submission `json:"submissions"`
+	}{}
+
+	err = json.NewDecoder(res.Body).Decode(&resultData)
+	if err != nil {
+		return nil, fmt.Errorf("someting went wrong while decoding judge zero get batch submission response %w", err)
+	}
+
+	return resultData.Submissions, nil
 }
