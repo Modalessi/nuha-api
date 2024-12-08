@@ -6,11 +6,22 @@ competitive programming
 
 ### To do
 
-- register, sign in. [DONE]
-- restore password method
-- send submissions [DONE]
-- get submission [DONE]
-- CRUD operatiosn for problems 
+
+- CORS configuration
+- Auth (1/ 3)
+  - register, sign in. [DONE]
+  - restore password method
+  - verify email method
+  
+- Submissions (4/ 5)
+  - send submissions [DONE]
+  - get single submission [DONE]
+  - get user submssions [DONE]
+  - get all submsssions [DONE]
+  - Pagination
+  - respository 
+  
+- Problems (4 / 4)
   - admin create [DONE]
   - get problems list [DONE]
   - get problem [DONE]

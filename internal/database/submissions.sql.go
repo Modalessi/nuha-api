@@ -304,8 +304,49 @@ func (q *Queries) GetSubmissionResultsBySubmissionID(ctx context.Context, arg Ge
 	return items, nil
 }
 
+const getSubmissions = `-- name: GetSubmissions :many
+SELECT id, problem_id, user_id, language, source_code, status, updated_at, created_at FROM submissions ORDER BY created_at DESC OFFSET $1 LIMIT $2
+`
+
+type GetSubmissionsParams struct {
+	Offset int32
+	Limit  int32
+}
+
+func (q *Queries) GetSubmissions(ctx context.Context, arg GetSubmissionsParams) ([]Submission, error) {
+	rows, err := q.db.QueryContext(ctx, getSubmissions, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Submission
+	for rows.Next() {
+		var i Submission
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProblemID,
+			&i.UserID,
+			&i.Language,
+			&i.SourceCode,
+			&i.Status,
+			&i.UpdatedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getSubmissionsByProblemID = `-- name: GetSubmissionsByProblemID :many
-SELECT id, problem_id, user_id, language, source_code, status, updated_at, created_at FROM submissions WHERE problem_id = $1 OFFSET $2 LIMIT $3
+SELECT id, problem_id, user_id, language, source_code, status, updated_at, created_at FROM submissions WHERE problem_id = $1 ORDER BY created_at DESC OFFSET $2 LIMIT $3
 `
 
 type GetSubmissionsByProblemIDParams struct {
@@ -347,7 +388,7 @@ func (q *Queries) GetSubmissionsByProblemID(ctx context.Context, arg GetSubmissi
 }
 
 const getSubmissionsByUserID = `-- name: GetSubmissionsByUserID :many
-SELECT id, problem_id, user_id, language, source_code, status, updated_at, created_at FROM submissions WHERE user_id = $1 OFFSET $2 LIMIT $3
+SELECT id, problem_id, user_id, language, source_code, status, updated_at, created_at FROM submissions WHERE user_id = $1 ORDER BY created_at DESC OFFSET $2 LIMIT $3
 `
 
 type GetSubmissionsByUserIDParams struct {
@@ -358,6 +399,57 @@ type GetSubmissionsByUserIDParams struct {
 
 func (q *Queries) GetSubmissionsByUserID(ctx context.Context, arg GetSubmissionsByUserIDParams) ([]Submission, error) {
 	rows, err := q.db.QueryContext(ctx, getSubmissionsByUserID, arg.UserID, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Submission
+	for rows.Next() {
+		var i Submission
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProblemID,
+			&i.UserID,
+			&i.Language,
+			&i.SourceCode,
+			&i.Status,
+			&i.UpdatedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getUserSubmissionsForProblem = `-- name: GetUserSubmissionsForProblem :many
+SELECT id, problem_id, user_id, language, source_code, status, updated_at, created_at FROM submissions 
+WHERE user_id = $1 AND problem_id = $2 
+ORDER BY created_at DESC
+OFFSET $3 LIMIT $4
+`
+
+type GetUserSubmissionsForProblemParams struct {
+	UserID    uuid.UUID
+	ProblemID uuid.UUID
+	Offset    int32
+	Limit     int32
+}
+
+func (q *Queries) GetUserSubmissionsForProblem(ctx context.Context, arg GetUserSubmissionsForProblemParams) ([]Submission, error) {
+	rows, err := q.db.QueryContext(ctx, getUserSubmissionsForProblem,
+		arg.UserID,
+		arg.ProblemID,
+		arg.Offset,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}

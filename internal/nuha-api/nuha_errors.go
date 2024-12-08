@@ -25,6 +25,7 @@ var (
 	AUTHORIZATION_HEADER_ERROR = NuhaError{Code: 401, Message: "no authorization header"}
 	NOT_AUTHORIZED_ERROR       = NuhaError{Code: 403, Message: "you are not authorized to do this operation"}
 	INVALID_TOKEN_ERROR        = NuhaError{Code: 401, Message: "invalid token, please check"}
+	INVALID_ID_ERROR           = NuhaError{Code: 400, Message: "Invalid id was given"}
 )
 
 func EntityDoesNotExistError(enitity string) NuhaError {

@@ -13,14 +13,25 @@ INSERT INTO submissions (
     $5
 ) RETURNING *;
 
+
+-- name: GetSubmissions :many
+SELECT * FROM submissions ORDER BY created_at DESC OFFSET $1 LIMIT $2;
+
+
 -- name: GetSubmissionByID :one
 SELECT * FROM submissions WHERE id = $1;
 
 -- name: GetSubmissionsByUserID :many
-SELECT * FROM submissions WHERE user_id = $1 OFFSET $2 LIMIT $3;
+SELECT * FROM submissions WHERE user_id = $1 ORDER BY created_at DESC OFFSET $2 LIMIT $3;
 
 -- name: GetSubmissionsByProblemID :many
-SELECT * FROM submissions WHERE problem_id = $1 OFFSET $2 LIMIT $3;
+SELECT * FROM submissions WHERE problem_id = $1 ORDER BY created_at DESC OFFSET $2 LIMIT $3;
+
+-- name: GetUserSubmissionsForProblem :many
+SELECT * FROM submissions 
+WHERE user_id = $1 AND problem_id = $2 
+ORDER BY created_at DESC
+OFFSET $3 LIMIT $4;
 
 -- name: UpdateSubmissionStatus :one
 UPDATE submissions SET
