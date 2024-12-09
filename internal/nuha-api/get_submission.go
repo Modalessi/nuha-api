@@ -71,6 +71,9 @@ func getSubmission(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error
 }
 
 func submissionsForProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
+
+	pagination := internal.ParsePaginationRequest(r)
+
 	problemID := r.URL.Query().Get("problem_id")
 	if problemID == "" {
 		respondWithError(w, 400, INVALID_QUERY_ERROR)
@@ -96,8 +99,8 @@ func submissionsForProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Reques
 
 	getSubmissionsParams := database.GetSubmissionsByProblemIDParams{
 		ProblemID: id,
-		Offset:    0, // TODO: add pagination
-		Limit:     20,
+		Offset:    pagination.GetOffset(), // TODO: add pagination
+		Limit:     pagination.GetLimit(),
 	}
 	submissionsDB, err := ns.DBQueries.GetSubmissionsByProblemID(r.Context(), getSubmissionsParams)
 
@@ -116,6 +119,9 @@ func submissionsForProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Reques
 }
 
 func submissionsForUser(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
+
+	pagination := internal.ParsePaginationRequest(r)
+
 	userId := r.URL.Query().Get("user_id")
 	if userId == "" {
 		respondWithError(w, 400, INVALID_QUERY_ERROR)
@@ -140,8 +146,8 @@ func submissionsForUser(ns *NuhaServer, w http.ResponseWriter, r *http.Request) 
 
 	submissionsByUserIDParamas := database.GetSubmissionsByUserIDParams{
 		UserID: id,
-		Offset: 0, // TODO: pagination
-		Limit:  20,
+		Offset: pagination.GetOffset(),
+		Limit:  pagination.GetLimit(),
 	}
 	submissionsDB, err := ns.DBQueries.GetSubmissionsByUserID(r.Context(), submissionsByUserIDParamas)
 
@@ -160,6 +166,9 @@ func submissionsForUser(ns *NuhaServer, w http.ResponseWriter, r *http.Request) 
 }
 
 func userSubmissionForProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
+
+	pagination := internal.ParsePaginationRequest(r)
+
 	userIdQuery := r.URL.Query().Get("user_id")
 	if userIdQuery == "" {
 		respondWithError(w, 400, INVALID_QUERY_ERROR)
@@ -208,8 +217,8 @@ func userSubmissionForProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Req
 	userSubmissionsForProblemParams := database.GetUserSubmissionsForProblemParams{
 		UserID:    userId,
 		ProblemID: problemId,
-		Offset:    0, // TODO: pagination
-		Limit:     20,
+		Offset:    pagination.GetOffset(),
+		Limit:     pagination.GetLimit(),
 	}
 
 	submissionsDB, err := ns.DBQueries.GetUserSubmissionsForProblem(r.Context(), userSubmissionsForProblemParams)
@@ -228,9 +237,12 @@ func userSubmissionForProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Req
 }
 
 func getSubmissions(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
+
+	pagination := internal.ParsePaginationRequest(r)
+
 	getSubmissionsParams := database.GetSubmissionsParams{
-		Offset: 0,
-		Limit:  20, // TODO: Pagination
+		Offset: pagination.GetOffset(),
+		Limit:  pagination.GetLimit(),
 	}
 	submissionsDB, err := ns.DBQueries.GetSubmissions(r.Context(), getSubmissionsParams)
 	if errors.Is(err, sql.ErrNoRows) {

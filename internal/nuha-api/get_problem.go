@@ -53,11 +53,11 @@ func getProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
 
 func respondWithProblemList(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
 
-	// TODO: Pagination
+	pagination := internal.ParsePaginationRequest(r)
 
 	pr := repositories.NewProblemRepository(ns.S3.Client, ns.DB, ns.DBQueries, r.Context(), ns.S3.BucketName)
 
-	problemsDB, err := pr.GetProblems(0, 100)
+	problemsDB, err := pr.GetProblems(pagination.GetOffset(), pagination.GetLimit())
 	if err != nil {
 		respondWithError(w, 500, err)
 		return err

@@ -13,13 +13,12 @@ competitive programming
   - restore password method
   - verify email method
   
-- Submissions (4/ 5)
+- Submissions (6/ 6)
   - send submissions [DONE]
   - get single submission [DONE]
   - get user submssions [DONE]
   - get all submsssions [DONE]
-  - Pagination
-  - respository 
+  - Pagination [DONE]
   
 - Problems (4 / 4)
   - admin create [DONE]
