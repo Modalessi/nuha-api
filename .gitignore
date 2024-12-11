@@ -21,5 +21,8 @@
 go.work
 go.work.sum
 
+# mac os stuff
+.DS_Store
+
 # env file
 .env
