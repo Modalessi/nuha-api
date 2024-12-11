@@ -46,7 +46,7 @@ func createProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error
 	}
 
 	// store problem
-	pr := repositories.NewProblemRepository(ns.S3.Client, ns.DB, ns.DBQueries, r.Context(), ns.S3.BucketName)
+	pr := repositories.NewProblemRepository(ns.DB, ns.DBQueries, r.Context())
 	problemDB, err := pr.StoreNewProblem(problem)
 	if err != nil {
 		respondWithError(w, 500, SERVER_ERROR)

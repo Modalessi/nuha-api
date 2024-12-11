@@ -12,13 +12,37 @@ import (
 	"github.com/lib/pq"
 )
 
+const addProblemDescription = `-- name: AddProblemDescription :one
+INSERT INTO problems_descriptions (
+    problem_id,
+    description
+) VALUES (
+    $1,
+    $2
+) RETURNING problem_id, description, created_at, updated_at
+`
+
+type AddProblemDescriptionParams struct {
+	ProblemID   uuid.UUID
+	Description string
+}
+
+func (q *Queries) AddProblemDescription(ctx context.Context, arg AddProblemDescriptionParams) (ProblemsDescription, error) {
+	row := q.db.QueryRowContext(ctx, addProblemDescription, arg.ProblemID, arg.Description)
+	var i ProblemsDescription
+	err := row.Scan(
+		&i.ProblemID,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const createProblem = `-- name: CreateProblem :one
 INSERT INTO problems (
-    id,
     title,
     difficulty,
-    description_path,
-    testcases_path,
     tags,
     time_limit,
     memory_limit
@@ -27,31 +51,22 @@ INSERT INTO problems (
     $2,
     $3,
     $4,
-    $5,
-    $6,
-    $7,
-    $8
-) RETURNING id, title, difficulty, description_path, testcases_path, tags, time_limit, memory_limit, created_at, updated_at
+    $5
+) RETURNING id, title, difficulty, tags, time_limit, memory_limit, created_at, updated_at
 `
 
 type CreateProblemParams struct {
-	ID              uuid.UUID
-	Title           string
-	Difficulty      string
-	DescriptionPath string
-	TestcasesPath   string
-	Tags            []string
-	TimeLimit       float64
-	MemoryLimit     float64
+	Title       string
+	Difficulty  string
+	Tags        []string
+	TimeLimit   float64
+	MemoryLimit float64
 }
 
 func (q *Queries) CreateProblem(ctx context.Context, arg CreateProblemParams) (Problem, error) {
 	row := q.db.QueryRowContext(ctx, createProblem,
-		arg.ID,
 		arg.Title,
 		arg.Difficulty,
-		arg.DescriptionPath,
-		arg.TestcasesPath,
 		pq.Array(arg.Tags),
 		arg.TimeLimit,
 		arg.MemoryLimit,
@@ -61,8 +76,6 @@ func (q *Queries) CreateProblem(ctx context.Context, arg CreateProblemParams) (P
 		&i.ID,
 		&i.Title,
 		&i.Difficulty,
-		&i.DescriptionPath,
-		&i.TestcasesPath,
 		pq.Array(&i.Tags),
 		&i.TimeLimit,
 		&i.MemoryLimit,
@@ -72,8 +85,68 @@ func (q *Queries) CreateProblem(ctx context.Context, arg CreateProblemParams) (P
 	return i, err
 }
 
+const createTestCases = `-- name: CreateTestCases :many
+WITH numbered_arrays AS (
+    SELECT 
+        generate_series(
+            COALESCE((SELECT MAX(number) FROM test_cases WHERE problem_id = $1), 0) + 1,
+            COALESCE((SELECT MAX(number) FROM test_cases WHERE problem_id = $1), 0) + array_length($2::TEXT[], 1)
+        ) as num,
+        unnest($2::TEXT[]) as in_data,
+        unnest($3::TEXT[]) as out_data
+)
+INSERT INTO test_cases (
+    problem_id,
+    number,
+    stdin,
+    expected_output
+) 
+SELECT 
+    $1,
+    num,
+    in_data,
+    out_data
+FROM numbered_arrays
+RETURNING id, problem_id, number, stdin, expected_output
+`
+
+type CreateTestCasesParams struct {
+	ProblemID       uuid.UUID
+	Stdins          []string
+	ExpectedOutputs []string
+}
+
+func (q *Queries) CreateTestCases(ctx context.Context, arg CreateTestCasesParams) ([]TestCase, error) {
+	rows, err := q.db.QueryContext(ctx, createTestCases, arg.ProblemID, pq.Array(arg.Stdins), pq.Array(arg.ExpectedOutputs))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TestCase
+	for rows.Next() {
+		var i TestCase
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProblemID,
+			&i.Number,
+			&i.Stdin,
+			&i.ExpectedOutput,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteProblem = `-- name: DeleteProblem :one
-DELETE FROM problems WHERE id = $1 RETURNING id, title, difficulty, description_path, testcases_path, tags, time_limit, memory_limit, created_at, updated_at
+DELETE FROM problems WHERE id = $1 RETURNING id, title, difficulty, tags, time_limit, memory_limit, created_at, updated_at
 `
 
 func (q *Queries) DeleteProblem(ctx context.Context, id uuid.UUID) (Problem, error) {
@@ -83,8 +156,6 @@ func (q *Queries) DeleteProblem(ctx context.Context, id uuid.UUID) (Problem, err
 		&i.ID,
 		&i.Title,
 		&i.Difficulty,
-		&i.DescriptionPath,
-		&i.TestcasesPath,
 		pq.Array(&i.Tags),
 		&i.TimeLimit,
 		&i.MemoryLimit,
@@ -94,8 +165,57 @@ func (q *Queries) DeleteProblem(ctx context.Context, id uuid.UUID) (Problem, err
 	return i, err
 }
 
+const deleteProblemDescription = `-- name: DeleteProblemDescription :one
+DELETE FROM problems_descriptions WHERE problem_id = $1 RETURNING problem_id, description, created_at, updated_at
+`
+
+func (q *Queries) DeleteProblemDescription(ctx context.Context, problemID uuid.UUID) (ProblemsDescription, error) {
+	row := q.db.QueryRowContext(ctx, deleteProblemDescription, problemID)
+	var i ProblemsDescription
+	err := row.Scan(
+		&i.ProblemID,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const deleteTestCases = `-- name: DeleteTestCases :many
+DELETE FROM test_cases WHERE problem_id = $1 RETURNING id, problem_id, number, stdin, expected_output
+`
+
+func (q *Queries) DeleteTestCases(ctx context.Context, problemID uuid.UUID) ([]TestCase, error) {
+	rows, err := q.db.QueryContext(ctx, deleteTestCases, problemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TestCase
+	for rows.Next() {
+		var i TestCase
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProblemID,
+			&i.Number,
+			&i.Stdin,
+			&i.ExpectedOutput,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getProblemByID = `-- name: GetProblemByID :one
-SELECT id, title, difficulty, description_path, testcases_path, tags, time_limit, memory_limit, created_at, updated_at FROM problems WHERE id = $1
+SELECT id, title, difficulty, tags, time_limit, memory_limit, created_at, updated_at FROM problems WHERE id = $1
 `
 
 func (q *Queries) GetProblemByID(ctx context.Context, id uuid.UUID) (Problem, error) {
@@ -105,8 +225,6 @@ func (q *Queries) GetProblemByID(ctx context.Context, id uuid.UUID) (Problem, er
 		&i.ID,
 		&i.Title,
 		&i.Difficulty,
-		&i.DescriptionPath,
-		&i.TestcasesPath,
 		pq.Array(&i.Tags),
 		&i.TimeLimit,
 		&i.MemoryLimit,
@@ -116,8 +234,24 @@ func (q *Queries) GetProblemByID(ctx context.Context, id uuid.UUID) (Problem, er
 	return i, err
 }
 
+const getProblemDescription = `-- name: GetProblemDescription :one
+SELECT problem_id, description, created_at, updated_at FROM problems_descriptions WHERE problem_id = $1
+`
+
+func (q *Queries) GetProblemDescription(ctx context.Context, problemID uuid.UUID) (ProblemsDescription, error) {
+	row := q.db.QueryRowContext(ctx, getProblemDescription, problemID)
+	var i ProblemsDescription
+	err := row.Scan(
+		&i.ProblemID,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getProblems = `-- name: GetProblems :many
-SELECT id, title, difficulty, description_path, testcases_path, tags, time_limit, memory_limit, created_at, updated_at FROM problems OFFSET $1 LIMIT $2
+SELECT id, title, difficulty, tags, time_limit, memory_limit, created_at, updated_at FROM problems OFFSET $1 LIMIT $2
 `
 
 type GetProblemsParams struct {
@@ -138,13 +272,44 @@ func (q *Queries) GetProblems(ctx context.Context, arg GetProblemsParams) ([]Pro
 			&i.ID,
 			&i.Title,
 			&i.Difficulty,
-			&i.DescriptionPath,
-			&i.TestcasesPath,
 			pq.Array(&i.Tags),
 			&i.TimeLimit,
 			&i.MemoryLimit,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTestCases = `-- name: GetTestCases :many
+SELECT id, problem_id, number, stdin, expected_output FROM test_cases WHERE problem_id = $1 ORDER BY number
+`
+
+func (q *Queries) GetTestCases(ctx context.Context, problemID uuid.UUID) ([]TestCase, error) {
+	rows, err := q.db.QueryContext(ctx, getTestCases, problemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TestCase
+	for rows.Next() {
+		var i TestCase
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProblemID,
+			&i.Number,
+			&i.Stdin,
+			&i.ExpectedOutput,
 		); err != nil {
 			return nil, err
 		}
@@ -167,7 +332,7 @@ UPDATE problems SET
     time_limit = $5,
     memory_limit = $6,
     updated_at = now()
-WHERE id = $1 RETURNING id, title, difficulty, description_path, testcases_path, tags, time_limit, memory_limit, created_at, updated_at
+WHERE id = $1 RETURNING id, title, difficulty, tags, time_limit, memory_limit, created_at, updated_at
 `
 
 type UpdateProblemParams struct {
@@ -193,11 +358,33 @@ func (q *Queries) UpdateProblem(ctx context.Context, arg UpdateProblemParams) (P
 		&i.ID,
 		&i.Title,
 		&i.Difficulty,
-		&i.DescriptionPath,
-		&i.TestcasesPath,
 		pq.Array(&i.Tags),
 		&i.TimeLimit,
 		&i.MemoryLimit,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateProblemDescription = `-- name: UpdateProblemDescription :one
+UPDATE problems_descriptions SET
+    description = $2,
+    updated_at = now()
+WHERE problem_id = $1 RETURNING problem_id, description, created_at, updated_at
+`
+
+type UpdateProblemDescriptionParams struct {
+	ProblemID   uuid.UUID
+	Description string
+}
+
+func (q *Queries) UpdateProblemDescription(ctx context.Context, arg UpdateProblemDescriptionParams) (ProblemsDescription, error) {
+	row := q.db.QueryRowContext(ctx, updateProblemDescription, arg.ProblemID, arg.Description)
+	var i ProblemsDescription
+	err := row.Scan(
+		&i.ProblemID,
+		&i.Description,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)

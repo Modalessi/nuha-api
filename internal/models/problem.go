@@ -11,7 +11,7 @@ import (
 )
 
 type Problem struct {
-	ID          uuid.UUID
+	ID          *uuid.UUID
 	Title       string
 	Description string
 	Difficulty  string
@@ -19,20 +19,20 @@ type Problem struct {
 	Testcases   []Testcase
 	Timelimit   float64
 	Memorylimit float64
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	CreatedAt   *time.Time
+	UpdatedAt   *time.Time
 }
 
 func ProblemFromDBObject(p *database.Problem) *Problem {
 	return &Problem{
-		ID:          p.ID,
+		ID:          &p.ID,
 		Title:       p.Title,
 		Difficulty:  p.Difficulty,
 		Tags:        p.Tags,
 		Timelimit:   p.TimeLimit,
 		Memorylimit: p.MemoryLimit,
-		CreatedAt:   p.CreatedAt,
-		UpdatedAt:   p.UpdatedAt,
+		CreatedAt:   &p.CreatedAt,
+		UpdatedAt:   &p.UpdatedAt,
 	}
 }
 
@@ -43,7 +43,6 @@ func CreateNewProblem(title string, description string, difficulty string, tags 
 	}
 
 	return &Problem{
-		ID:          uuid.New(),
 		Title:       title,
 		Description: description,
 		Difficulty:  difficulty,

@@ -30,7 +30,6 @@ competitive programming
 
 
 
-
 ### Data Design 
 
 #### Problem
@@ -48,6 +47,17 @@ competitive programming
 - created_at
 - updated_at
 
+- Testcases
+  - id
+  - problem id (problem.id foregin key)
+  - number int
+  - stdin (blob)
+  - expected_output (blob)
+  - unique (problem id, number)
+
+- problems_descriptions
+  - problem_id primary (problem.id foregin key)
+  - description blob
 
 
 #### Submission

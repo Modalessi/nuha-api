@@ -11,6 +11,7 @@ import (
 
 	"github.com/Modalessi/nuha-api/internal/models"
 	"github.com/Modalessi/nuha-api/internal/repositories"
+	"github.com/google/uuid"
 )
 
 func addTestCases(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
@@ -18,6 +19,12 @@ func addTestCases(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error 
 	if problemId == "" {
 		respondWithError(w, 400, INVALID_QUERY_ERROR)
 		return fmt.Errorf("error, problem_id query was not provided")
+	}
+
+	id, err := uuid.Parse(problemId)
+	if err != nil {
+		respondWithError(w, 400, INVALID_ID_ERROR)
+		return err
 	}
 
 	defer r.Body.Close()
@@ -43,17 +50,17 @@ func addTestCases(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error 
 		}
 	}
 
-	pr := repositories.NewProblemRepository(ns.S3.Client, ns.DB, ns.DBQueries, r.Context(), ns.S3.BucketName)
+	pr := repositories.NewProblemRepository(ns.DB, ns.DBQueries, r.Context())
 
 	// check if problem exist
-	problemDb, err := pr.GetProblemInfo(problemId)
+	_, err = pr.GetProblemInfo(id)
 	if err != nil {
 		respondWithError(w, 400, err)
 		return err
 	}
 
 	// store test cases
-	err = pr.AddNewTestCases(problemDb.ID.String(), requestTestcases...)
+	err = pr.AddNewTestCases(id, requestTestcases...)
 	if err != nil {
 		respondWithError(w, 500, SERVER_ERROR)
 		return err

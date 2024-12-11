@@ -92,9 +92,9 @@ func (j *JudgeAPI) PostBatchSubmission(bs *SubmissionBatch) ([]string, error) {
 		return nil, fmt.Errorf("someting went wrong while decoding judge zero sending batch submission response %w", err)
 	}
 
-	tokens := make([]string, 0, len(resBody))
-	for _, t := range resBody {
-		tokens = append(tokens, t.Token)
+	tokens := make([]string, len(resBody))
+	for i, t := range resBody {
+		tokens[i] = t.Token
 	}
 
 	return tokens, nil

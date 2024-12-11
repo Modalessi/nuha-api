@@ -5,6 +5,7 @@ import (
 
 	"github.com/Modalessi/nuha-api/internal"
 	"github.com/Modalessi/nuha-api/internal/repositories"
+	"github.com/google/uuid"
 )
 
 func getProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
@@ -13,15 +14,21 @@ func getProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
 		return respondWithProblemList(ns, w, r)
 	}
 
-	pr := repositories.NewProblemRepository(ns.S3.Client, ns.DB, ns.DBQueries, r.Context(), ns.S3.BucketName)
+	id, err := uuid.Parse(problemId)
+	if err != nil {
+		respondWithError(w, 400, INVALID_ID_ERROR)
+		return err
+	}
 
-	problemDB, err := pr.GetProblemInfo(problemId)
+	pr := repositories.NewProblemRepository(ns.DB, ns.DBQueries, r.Context())
+
+	problemDB, err := pr.GetProblemInfo(id)
 	if err != nil {
 		respondWithError(w, 404, EntityDoesNotExistError("Problem"))
 		return err
 	}
 
-	problemDescription, err := pr.GetProblemDescription(problemId)
+	problemDescription, err := pr.GetProblemDescription(id)
 	if err != nil {
 		respondWithError(w, 500, SERVER_ERROR)
 		return err
@@ -55,7 +62,7 @@ func respondWithProblemList(ns *NuhaServer, w http.ResponseWriter, r *http.Reque
 
 	pagination := internal.ParsePaginationRequest(r)
 
-	pr := repositories.NewProblemRepository(ns.S3.Client, ns.DB, ns.DBQueries, r.Context(), ns.S3.BucketName)
+	pr := repositories.NewProblemRepository(ns.DB, ns.DBQueries, r.Context())
 
 	problemsDB, err := pr.GetProblems(pagination.GetOffset(), pagination.GetLimit())
 	if err != nil {

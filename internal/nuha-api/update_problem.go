@@ -7,6 +7,7 @@ import (
 
 	"github.com/Modalessi/nuha-api/internal/models"
 	"github.com/Modalessi/nuha-api/internal/repositories"
+	"github.com/google/uuid"
 )
 
 func updateProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
@@ -15,6 +16,12 @@ func updateProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error
 	if problemId == "" {
 		respondWithError(w, 400, INVALID_QUERY_ERROR)
 		return fmt.Errorf("error, problem_id query was not provided")
+	}
+
+	id, err := uuid.Parse(problemId)
+	if err != nil {
+		respondWithError(w, 400, INVALID_ID_ERROR)
+		return err
 	}
 
 	type updateProblemSchema struct {
@@ -28,7 +35,7 @@ func updateProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error
 
 	defer r.Body.Close()
 	updateData := updateProblemSchema{}
-	err := json.NewDecoder(r.Body).Decode(&updateData)
+	err = json.NewDecoder(r.Body).Decode(&updateData)
 	if err != nil {
 		respondWithError(w, 400, INVALID_JSON_ERROR)
 		return err
@@ -47,14 +54,14 @@ func updateProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error
 
 	// Validate difficulty if provided
 
-	pr := repositories.NewProblemRepository(ns.S3.Client, ns.DB, ns.DBQueries, r.Context(), ns.S3.BucketName)
-	problemDB, err := pr.GetProblemInfo(problemId)
+	pr := repositories.NewProblemRepository(ns.DB, ns.DBQueries, r.Context())
+	problemDB, err := pr.GetProblemInfo(id)
 	if err != nil {
 		respondWithError(w, 404, EntityDoesNotExistError("Problem"))
 		return err
 	}
 
-	description, err := pr.GetProblemDescription(problemId)
+	description, err := pr.GetProblemDescription(id)
 	if err != nil {
 		respondWithError(w, 500, SERVER_ERROR)
 		return err

@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/json"
 
+	"github.com/Modalessi/nuha-api/internal/database"
 	"github.com/Modalessi/nuha-api/internal/utils"
 )
 
@@ -16,6 +17,16 @@ func NewTestCase(stdin string, expectedOutput string) *Testcase {
 		Stdin:          stdin,
 		ExpectedOutput: expectedOutput,
 	}
+}
+
+func TestCasesFromDBObjects(testcases []database.TestCase) []Testcase {
+
+	tcs := make([]Testcase, len(testcases))
+	for i, tc := range testcases {
+		tcs[i] = *NewTestCase(tc.Stdin, tc.ExpectedOutput)
+	}
+
+	return tcs
 }
 
 func (t *Testcase) JSON() []byte {

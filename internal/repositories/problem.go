@@ -4,52 +4,34 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io"
-	"path/filepath"
-	"sort"
-	"strconv"
-	"strings"
 
 	"github.com/Modalessi/nuha-api/internal/database"
 	"github.com/Modalessi/nuha-api/internal/models"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/google/uuid"
 )
 
 type ProblemRepository struct {
-	db         *sql.DB
-	dbQueries  *database.Queries
-	ctx        context.Context
-	s3Client   *s3.Client
-	bucketName string
+	db        *sql.DB
+	dbQueries *database.Queries
+	ctx       context.Context
 }
 
-func NewProblemRepository(s3client *s3.Client, db *sql.DB, dbQueries *database.Queries, ctx context.Context, bucketName string) *ProblemRepository {
+func NewProblemRepository(db *sql.DB, dbQueries *database.Queries, ctx context.Context) *ProblemRepository {
 	return &ProblemRepository{
-		db:         db,
-		dbQueries:  dbQueries,
-		s3Client:   s3client,
-		ctx:        ctx,
-		bucketName: bucketName,
+		db:        db,
+		dbQueries: dbQueries,
+		ctx:       ctx,
 	}
 }
 
 func (pr *ProblemRepository) StoreNewProblem(p *models.Problem) (*database.Problem, error) {
 
-	descriptionPath := fmt.Sprintf("problems/%s/description.md", p.ID.String())
-	testcasesPath := fmt.Sprintf("problems/%s/testcases", p.ID.String())
-
 	newProblemParams := database.CreateProblemParams{
-		ID:              p.ID,
-		Title:           p.Title,
-		Difficulty:      p.Difficulty,
-		DescriptionPath: descriptionPath,
-		TestcasesPath:   testcasesPath,
-		Tags:            p.Tags,
-		TimeLimit:       p.Timelimit,
-		MemoryLimit:     p.Memorylimit,
+		Title:       p.Title,
+		Difficulty:  p.Difficulty,
+		Tags:        p.Tags,
+		TimeLimit:   p.Timelimit,
+		MemoryLimit: p.Memorylimit,
 	}
 
 	tx, err := pr.db.BeginTx(pr.ctx, nil)
@@ -65,41 +47,31 @@ func (pr *ProblemRepository) StoreNewProblem(p *models.Problem) (*database.Probl
 		return nil, err
 	}
 
-	// add description md to s3
-	newObjectParams := &s3.PutObjectInput{
-		Bucket: aws.String(pr.bucketName),
-		Key:    aws.String(descriptionPath),
-		Body:   strings.NewReader(p.Description),
+	addDescriptionParams := database.AddProblemDescriptionParams{
+		ProblemID:   dbProblem.ID,
+		Description: p.Description,
 	}
-	_, err = pr.s3Client.PutObject(pr.ctx, newObjectParams)
+	_, err = qtx.AddProblemDescription(pr.ctx, addDescriptionParams)
 	if err != nil {
-		return nil, fmt.Errorf("uploading description to S3: %w", err)
+		return nil, err
 	}
 
-	// add test cases .in .out to s3
-	for i, tc := range p.Testcases {
-		inputPath := fmt.Sprintf("%s/%d.in", testcasesPath, i+1)
-		newObjectParams = &s3.PutObjectInput{
-			Bucket: aws.String(pr.bucketName),
-			Key:    aws.String(inputPath),
-			Body:   strings.NewReader(tc.Stdin),
-		}
-		_, err := pr.s3Client.PutObject(pr.ctx, newObjectParams)
-		if err != nil {
-			return nil, fmt.Errorf("uploading testcase input %d to S3: %w", i+1, err)
-		}
+	testCasesStdins := make([]string, len(p.Testcases))
+	testCasesExpectedOutputs := make([]string, len(p.Testcases))
 
-		outputPath := fmt.Sprintf("%s/%d.out", testcasesPath, i+1)
-		newObjectParams = &s3.PutObjectInput{
-			Bucket: aws.String(pr.bucketName),
-			Key:    aws.String(outputPath),
-			Body:   strings.NewReader(tc.ExpectedOutput),
-		}
-		_, err = pr.s3Client.PutObject(pr.ctx, newObjectParams)
-		if err != nil {
-			return nil, fmt.Errorf("uploading testcase output %d to S3: %w", i+1, err)
-		}
+	for i := range p.Testcases {
+		testCasesStdins[i] = p.Testcases[i].Stdin
+		testCasesExpectedOutputs[i] = p.Testcases[i].ExpectedOutput
+	}
 
+	addTestCasesParams := database.CreateTestCasesParams{
+		ProblemID:       dbProblem.ID,
+		Stdins:          testCasesStdins,
+		ExpectedOutputs: testCasesExpectedOutputs,
+	}
+	_, err = qtx.CreateTestCases(pr.ctx, addTestCasesParams)
+	if err != nil {
+		return nil, err
 	}
 
 	err = tx.Commit()
@@ -108,42 +80,28 @@ func (pr *ProblemRepository) StoreNewProblem(p *models.Problem) (*database.Probl
 	}
 
 	return &dbProblem, nil
+
 }
 
-func (pr *ProblemRepository) GetProblemInfo(problemID string) (*database.Problem, error) {
-	id, err := uuid.Parse(problemID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid problem ID format %q: %w", problemID, err)
-	}
+func (pr *ProblemRepository) GetProblemInfo(problemID uuid.UUID) (*database.Problem, error) {
 
-	problem, err := pr.dbQueries.GetProblemByID(pr.ctx, id)
+	problem, err := pr.dbQueries.GetProblemByID(pr.ctx, problemID)
 
 	if err != nil {
-		return nil, fmt.Errorf("database error checking problem %s: %w", id, err)
+		return nil, fmt.Errorf("database error checking problem %s: %w", problemID, err)
 	}
 
 	return &problem, nil
 }
 
-func (pr *ProblemRepository) GetProblemDescription(problemID string) (string, error) {
+func (pr *ProblemRepository) GetProblemDescription(problemID uuid.UUID) (string, error) {
 
-	path := fmt.Sprintf("problems/%s/description.md", problemID)
-
-	getObjectParams := &s3.GetObjectInput{
-		Bucket: aws.String(pr.bucketName),
-		Key:    aws.String(path),
-	}
-	result, err := pr.s3Client.GetObject(pr.ctx, getObjectParams)
+	dbDescription, err := pr.dbQueries.GetProblemDescription(pr.ctx, problemID)
 	if err != nil {
-		return "", fmt.Errorf("error while getting description from s3: %w", err)
+		return "", err
 	}
 
-	descriptionBytes, err := io.ReadAll(result.Body)
-	if err != nil {
-		return "", fmt.Errorf("error reading s3 result body for discription: %w", err)
-	}
-
-	return string(descriptionBytes), nil
+	return dbDescription.Description, nil
 }
 
 func (pr *ProblemRepository) GetProblems(offset int32, limit int32) ([]database.Problem, error) {
@@ -159,117 +117,40 @@ func (pr *ProblemRepository) GetProblems(offset int32, limit int32) ([]database.
 	return problems, nil
 }
 
-func (pr *ProblemRepository) GetTestCases(problemId string) ([]models.Testcase, error) {
-	testcasesPrefix := fmt.Sprintf("problems/%s/testcases/", problemId)
+func (pr *ProblemRepository) GetTestCases(problemId uuid.UUID) ([]database.TestCase, error) {
 
-	listObjectsParams := &s3.ListObjectsV2Input{
-		Bucket: aws.String(pr.bucketName),
-		Prefix: aws.String(testcasesPrefix),
-	}
-	result, err := pr.s3Client.ListObjectsV2(pr.ctx, listObjectsParams)
+	dbTestCases, err := pr.dbQueries.GetTestCases(pr.ctx, problemId)
 	if err != nil {
-		return nil, fmt.Errorf("error listing problem objects in s3: %w", err)
+		return nil, err
 	}
-
-	testcases := make(map[string]models.Testcase, len(result.Contents))
-	for _, obj := range result.Contents {
-		// getting input file
-
-		if obj.Key == nil {
-			return nil, fmt.Errorf("error testcase key is somehow nil, WTF")
-		}
-
-		getObjectParams := &s3.GetObjectInput{
-			Bucket: aws.String(pr.bucketName),
-			Key:    obj.Key,
-		}
-		res, err := pr.s3Client.GetObject(pr.ctx, getObjectParams)
-		if err != nil {
-			return nil, fmt.Errorf("error getting input %v file from s3: %w", obj.Key, err)
-		}
-		defer res.Body.Close()
-
-		content, err := io.ReadAll(res.Body)
-		if err != nil {
-			return nil, fmt.Errorf("error reading input %v file from s3: %w", obj.Key, err)
-		}
-
-		fileName := filepath.Base(*obj.Key)
-		isInput := strings.HasSuffix(*obj.Key, ".in")
-		ext := ".in"
-		if !isInput {
-			ext = ".out"
-		}
-		testcaseNumber := strings.TrimSuffix(fileName, ext)
-		testcase := testcases[testcaseNumber]
-
-		if isInput {
-			testcase.Stdin = string(content)
-		} else {
-			testcase.ExpectedOutput = string(content)
-		}
-
-		testcases[testcaseNumber] = testcase
-
-	}
-
-	numbers := make([]string, 0, len(testcases))
-	for num := range testcases {
-		numbers = append(numbers, num)
-	}
-	sort.Strings(numbers)
-
-	testcasesFlattened := make([]models.Testcase, 0, len(testcases))
-	for _, num := range numbers {
-		tc := testcases[num]
-		if tc.Stdin == "" || tc.ExpectedOutput == "" {
-			return nil, fmt.Errorf("incomplete testcase found for number %s", num)
-		}
-		testcasesFlattened = append(testcasesFlattened, tc)
-	}
-
-	return testcasesFlattened, nil
-
+	return dbTestCases, nil
 }
 
-func (pr *ProblemRepository) AddNewTestCases(problemId string, testcases ...models.Testcase) error {
+func (pr *ProblemRepository) AddNewTestCases(problemId uuid.UUID, testcases ...models.Testcase) error {
 
-	testcasesPath := fmt.Sprintf("problems/%s/testcases", problemId)
-	nextTestcaseNumber, err := getNextTestcaseNumber(*pr.s3Client, pr.bucketName, pr.ctx, problemId)
-	if err != nil {
-		return fmt.Errorf("error while getting last testcase number: %w", err)
+	testCasesStdins := make([]string, len(testcases))
+	testCasesExpectedOutputs := make([]string, len(testcases))
+
+	for i := range testcases {
+		testCasesStdins[i] = testcases[i].Stdin
+		testCasesExpectedOutputs[i] = testcases[i].ExpectedOutput
 	}
 
-	for _, tc := range testcases {
-		inputPath := fmt.Sprintf("%s/%d.in", testcasesPath, nextTestcaseNumber)
-		newInputParams := &s3.PutObjectInput{
-			Bucket: aws.String(pr.bucketName),
-			Key:    aws.String(inputPath),
-			Body:   strings.NewReader(tc.Stdin),
-		}
-		_, err := pr.s3Client.PutObject(pr.ctx, newInputParams)
-		if err != nil {
-			return fmt.Errorf("uploading testcase input %d to S3: %w", nextTestcaseNumber, err)
-		}
+	addTestCasesParams := database.CreateTestCasesParams{
+		ProblemID:       problemId,
+		Stdins:          testCasesStdins,
+		ExpectedOutputs: testCasesExpectedOutputs,
+	}
+	_, err := pr.dbQueries.CreateTestCases(pr.ctx, addTestCasesParams)
 
-		outputPath := fmt.Sprintf("%s/%d.out", testcasesPath, nextTestcaseNumber)
-		newOutputParams := &s3.PutObjectInput{
-			Bucket: aws.String(pr.bucketName),
-			Key:    aws.String(outputPath),
-			Body:   strings.NewReader(tc.ExpectedOutput),
-		}
-		_, err = pr.s3Client.PutObject(pr.ctx, newOutputParams)
-		if err != nil {
-			return fmt.Errorf("uploading testcase output %d to S3: %w", nextTestcaseNumber, err)
-		}
-
-		nextTestcaseNumber += 1
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func (pr *ProblemRepository) DeleteProblem(problemId string) (*database.Problem, error) {
+func (pr *ProblemRepository) DeleteProblem(problemId uuid.UUID) (*database.Problem, error) {
 
 	tx, err := pr.db.BeginTx(pr.ctx, nil)
 	if err != nil {
@@ -280,50 +161,22 @@ func (pr *ProblemRepository) DeleteProblem(problemId string) (*database.Problem,
 
 	txq := pr.dbQueries.WithTx(tx)
 
-	id, err := uuid.Parse(problemId)
+	// delete description
+	_, err = txq.DeleteProblemDescription(pr.ctx, problemId)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing problem id please give a valid id: %w", err)
+		return nil, err
 	}
 
-	// delete from db
-	deletedProblem, err := txq.DeleteProblem(pr.ctx, id)
+	// delete testcases
+	_, err = txq.DeleteTestCases(pr.ctx, problemId)
 	if err != nil {
-		return nil, fmt.Errorf("error deleting problem from db with id %q: %w", id, err)
+		return nil, err
 	}
 
-	//delete from s3
-	problemPrefix := fmt.Sprintf("problems/%s/", problemId)
-	listObjectsParams := &s3.ListObjectsV2Input{
-		Bucket: aws.String(pr.bucketName),
-		Prefix: aws.String(problemPrefix),
-	}
-	result, err := pr.s3Client.ListObjectsV2(pr.ctx, listObjectsParams)
+	// delete problem
+	deletedProblem, err := txq.DeleteProblem(pr.ctx, problemId)
 	if err != nil {
-		return nil, fmt.Errorf("error listing problem objects in s3: %w", err)
-	}
-
-	objectsToDelete := make([]types.ObjectIdentifier, len(result.Contents))
-	for i, object := range result.Contents {
-		objectsToDelete[i] = types.ObjectIdentifier{Key: object.Key}
-	}
-
-	deleteObjectParams := &s3.DeleteObjectsInput{
-		Bucket: aws.String(pr.bucketName),
-		Delete: &types.Delete{Objects: objectsToDelete},
-	}
-
-	deletedResult, err := pr.s3Client.DeleteObjects(pr.ctx, deleteObjectParams)
-	if err != nil {
-		return nil, fmt.Errorf("error deleting problem objects from s3: %w", err)
-	}
-
-	if len(deletedResult.Errors) > 0 {
-		return nil, fmt.Errorf("failed to delete some objects from s3: %v", deletedResult.Errors)
-	}
-
-	err = tx.Commit()
-	if err != nil {
-		return nil, fmt.Errorf("error committing transaction: %w", err)
+		return nil, fmt.Errorf("error deleting problem from db with id %q: %w", problemId, err)
 	}
 
 	return &deletedProblem, nil
@@ -340,7 +193,7 @@ func (pr *ProblemRepository) UpdateProblem(problem *models.Problem) error {
 	txq := pr.dbQueries.WithTx(tx)
 
 	updateProblemParams := database.UpdateProblemParams{
-		ID:          problem.ID,
+		ID:          *problem.ID,
 		Title:       problem.Title,
 		Difficulty:  problem.Difficulty,
 		Tags:        problem.Tags,
@@ -352,56 +205,18 @@ func (pr *ProblemRepository) UpdateProblem(problem *models.Problem) error {
 		return fmt.Errorf("error updating problem in database: %w", err)
 	}
 
-	// update description in s3
-	descriptionPath := fmt.Sprintf("problems/%s/description.md", problem.ID.String())
-	newObjectParams := &s3.PutObjectInput{
-		Bucket: aws.String(pr.bucketName),
-		Key:    aws.String(descriptionPath),
-		Body:   strings.NewReader(problem.Description),
-	}
-	_, err = pr.s3Client.PutObject(pr.ctx, newObjectParams)
-	if err != nil {
-		return fmt.Errorf("updating description in S3: %w", err)
+	if problem.ID == nil {
+		return fmt.Errorf("problem has nil id, unacceptable")
 	}
 
-	err = tx.Commit()
+	updateProblemDescParams := database.UpdateProblemDescriptionParams{
+		ProblemID:   *problem.ID,
+		Description: problem.Description,
+	}
+	_, err = txq.UpdateProblemDescription(pr.ctx, updateProblemDescParams)
 	if err != nil {
-		return fmt.Errorf("error commiting transaction to database: %w", err)
+		return err
 	}
 
 	return nil
-}
-
-func getNextTestcaseNumber(s3Client s3.Client, bucketName string, ctx context.Context, problemId string) (int, error) {
-	testcasesPath := fmt.Sprintf("problems/%s/testcases/", problemId)
-
-	listObjectsParams := &s3.ListObjectsV2Input{
-		Bucket: aws.String(bucketName),
-		Prefix: aws.String(testcasesPath),
-	}
-	result, err := s3Client.ListObjectsV2(ctx, listObjectsParams)
-	if err != nil {
-		return 0, fmt.Errorf("error when getting object from bucket: %w", err)
-	}
-
-	maxNum := 0
-	for _, obj := range result.Contents {
-		if !strings.HasSuffix(*obj.Key, ".in") {
-			continue
-		}
-
-		filename := filepath.Base(*obj.Key)
-		numStr := strings.TrimSuffix(filename, ".in")
-
-		num, err := strconv.Atoi(numStr)
-		if err != nil {
-			continue
-		}
-
-		if num > maxNum {
-			maxNum = num
-		}
-	}
-
-	return maxNum + 1, nil
 }

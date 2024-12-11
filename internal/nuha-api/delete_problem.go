@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/Modalessi/nuha-api/internal/repositories"
+	"github.com/google/uuid"
 )
 
 func deleteProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
@@ -16,10 +17,15 @@ func deleteProblem(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error
 		return fmt.Errorf("error, problem_id query was not provided")
 	}
 
+	id, err := uuid.Parse(problemId)
+	if err != nil {
+		respondWithError(w, 400, INVALID_ID_ERROR)
+		return err
+	}
 	defer r.Body.Close()
 
-	pr := repositories.NewProblemRepository(ns.S3.Client, ns.DB, ns.DBQueries, r.Context(), ns.S3.BucketName)
-	deletedProblem, err := pr.DeleteProblem(problemId)
+	pr := repositories.NewProblemRepository(ns.DB, ns.DBQueries, r.Context())
+	deletedProblem, err := pr.DeleteProblem(id)
 	if errors.Is(err, sql.ErrNoRows) {
 		respondWithError(w, 404, EntityDoesNotExistError("Problem"))
 		return err

@@ -7,7 +7,6 @@ import (
 	"github.com/Modalessi/nuha-api/internal/database"
 	"github.com/Modalessi/nuha-api/internal/judgeAPI"
 	submissionsPL "github.com/Modalessi/nuha-api/internal/nuha-api/submissions_pipeline"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 type NuhaServer struct {
@@ -16,17 +15,11 @@ type NuhaServer struct {
 	SubmissionsPL *submissionsPL.SubmissionsPipeline
 	DB            *sql.DB
 	DBQueries     *database.Queries
-	S3            *S3Config
 	JWTSecret     string
 	AdminEmail    string
 }
 
-type S3Config struct {
-	Client     *s3.Client
-	BucketName string
-}
-
-func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, s3config *S3Config, jwtSecret string, adminEmail string) *NuhaServer {
+func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, jwtSecret string, adminEmail string) *NuhaServer {
 	serverMux := http.NewServeMux()
 
 	submissionsPipeline := submissionsPL.NewSubmissionPipeline(ja, db, dbQuereis)
@@ -37,7 +30,6 @@ func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, s
 		SubmissionsPL: submissionsPipeline,
 		DB:            db,
 		DBQueries:     dbQuereis,
-		S3:            s3config,
 		JWTSecret:     jwtSecret,
 		AdminEmail:    adminEmail,
 	}
@@ -62,13 +54,6 @@ func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, s
 	ns.SubmissionsPL.Start()
 	return &ns
 
-}
-
-func NewS3Config(client *s3.Client, bucketName string) *S3Config {
-	return &S3Config{
-		Client:     client,
-		BucketName: bucketName,
-	}
 }
 
 func (ns *NuhaServer) GetServer() http.Handler {

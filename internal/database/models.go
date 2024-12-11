@@ -11,16 +11,21 @@ import (
 )
 
 type Problem struct {
-	ID              uuid.UUID
-	Title           string
-	Difficulty      string
-	DescriptionPath string
-	TestcasesPath   string
-	Tags            []string
-	TimeLimit       float64
-	MemoryLimit     float64
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID          uuid.UUID
+	Title       string
+	Difficulty  string
+	Tags        []string
+	TimeLimit   float64
+	MemoryLimit float64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type ProblemsDescription struct {
+	ProblemID   uuid.UUID
+	Description string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type Submission struct {
@@ -47,6 +52,14 @@ type SubmissionResult struct {
 	JudgeResponse  []byte
 	UpdatedAt      time.Time
 	CreatedAt      time.Time
+}
+
+type TestCase struct {
+	ID             uuid.UUID
+	ProblemID      uuid.UUID
+	Number         int32
+	Stdin          string
+	ExpectedOutput string
 }
 
 type User struct {

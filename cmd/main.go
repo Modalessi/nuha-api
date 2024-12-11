@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -11,8 +10,6 @@ import (
 	"github.com/Modalessi/nuha-api/internal/judgeAPI"
 	"github.com/Modalessi/nuha-api/internal/nuha-api"
 	"github.com/Modalessi/nuha-api/internal/utils"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
@@ -47,17 +44,10 @@ func main() {
 	adminEmail := os.Getenv("ADMIN_EMAIL")
 	utils.AssertOn(adminEmail != "", "somethign went wrong when reading 'ADMIN_EMAIL' env variable")
 
-	awsConfig, err := config.LoadDefaultConfig(context.TODO())
-	utils.Assert(err, "error creating aws config")
-
 	problemSetBucketName := os.Getenv("AWS_PROBLEMSET_BUCKET")
 	utils.AssertOn(problemSetBucketName != "", "somethign went wrong when reading 'AWS_PROBLEMSET_BUCKET' env variable")
 
-	s3client := s3.NewFromConfig(awsConfig)
-
-	nuhaS3Config := nuha.NewS3Config(s3client, problemSetBucketName)
-
-	nuhaServer := nuha.NewServer(judgeAPI, db, dbQueries, nuhaS3Config, JWTSecret, adminEmail)
+	nuhaServer := nuha.NewServer(judgeAPI, db, dbQueries, JWTSecret, adminEmail)
 
 	// TODO: gracful shut down for SIGINT, SIGTERM
 	fmt.Println("server is now running...")

@@ -23,6 +23,12 @@ func submitSolution(ns *NuhaServer, w http.ResponseWriter, r *http.Request) erro
 		return fmt.Errorf("error, problem_id query was not provided")
 	}
 
+	id, err := uuid.Parse(problemId)
+	if err != nil {
+		respondWithError(w, 400, INVALID_ID_ERROR)
+		return err
+	}
+
 	type submissionSchema struct {
 		Language int    `json:"language"`
 		Code     string `json:"code"`
@@ -30,14 +36,14 @@ func submitSolution(ns *NuhaServer, w http.ResponseWriter, r *http.Request) erro
 	defer r.Body.Close()
 
 	submissionData := submissionSchema{}
-	err := json.NewDecoder(r.Body).Decode(&submissionData)
+	err = json.NewDecoder(r.Body).Decode(&submissionData)
 	if err != nil {
 		respondWithError(w, 400, INVALID_JSON_ERROR)
 		return err
 	}
 
-	pr := repositories.NewProblemRepository(ns.S3.Client, ns.DB, ns.DBQueries, r.Context(), ns.S3.BucketName)
-	problem, err := pr.GetProblemInfo(problemId)
+	pr := repositories.NewProblemRepository(ns.DB, ns.DBQueries, r.Context())
+	problem, err := pr.GetProblemInfo(id)
 	if errors.Is(err, sql.ErrNoRows) {
 		respondWithError(w, 404, EntityDoesNotExistError("Problem"))
 		return err
@@ -61,7 +67,7 @@ func submitSolution(ns *NuhaServer, w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 
-	testcases, err := pr.GetTestCases(problemId)
+	testcases, err := pr.GetTestCases(id)
 	if err != nil {
 		respondWithError(w, 500, SERVER_ERROR)
 		return err
@@ -92,7 +98,7 @@ func submitSolution(ns *NuhaServer, w http.ResponseWriter, r *http.Request) erro
 		Timelimit:    problem.TimeLimit,
 		MemoryLimit:  problem.MemoryLimit,
 		ProblemID:    problem.ID,
-		Testcases:    testcases,
+		Testcases:    models.TestCasesFromDBObjects(testcases),
 	}
 	ns.SubmissionsPL.Submit(submissionJob)
 
