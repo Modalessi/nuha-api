@@ -3,26 +3,26 @@ package repositories
 import (
 	"context"
 	"database/sql"
-	"strings"
 
 	"github.com/Modalessi/nuha-api/internal/database"
 	"github.com/Modalessi/nuha-api/internal/models"
+	"github.com/google/uuid"
 )
 
 type UserRespository struct {
+	db        *sql.DB
 	dbQuereis *database.Queries
-	ctx       context.Context
 }
 
-func NewUserRespository(ctx context.Context, db *database.Queries) *UserRespository {
+func NewUserRespository(db *sql.DB, dbQuereis *database.Queries) *UserRespository {
 	return &UserRespository{
-		dbQuereis: db,
-		ctx:       ctx,
+		db:        db,
+		dbQuereis: dbQuereis,
 	}
 }
 
-func (ur *UserRespository) DoesUserExistWithEmail(email string) (bool, error) {
-	_, err := ur.dbQuereis.GetUserByEmail(ur.ctx, email)
+func (ur *UserRespository) DoesUserExistWithEmail(ctx context.Context, email string) (bool, error) {
+	_, err := ur.dbQuereis.GetUserByEmail(ctx, email)
 
 	if err == sql.ErrNoRows {
 		return false, nil
@@ -35,33 +35,56 @@ func (ur *UserRespository) DoesUserExistWithEmail(email string) (bool, error) {
 	return true, nil
 }
 
-func (uf *UserRespository) StoreNewUser(u *models.User) (*database.User, error) {
+func (ur *UserRespository) StoreNewUserData(ctx context.Context, id uuid.UUID, firstName string, lastName string) (*models.User, error) {
 
-	newUserParams := database.CreateUserParams{
-		Name:     u.Name,
-		Email:    strings.ToLower(u.Name),
-		Password: u.Password,
+	tx, err := ur.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
 	}
+	defer tx.Rollback()
 
-	user, err := uf.dbQuereis.CreateUser(uf.ctx, newUserParams)
+	txq := ur.dbQuereis.WithTx(tx)
+
+	userDB, err := txq.GetUserByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	return &user, nil
+	createUserDataParams := database.CreateUserDataParams{
+		ID:        userDB.ID,
+		FirstName: firstName,
+		LastName:  lastName,
+	}
+	userDataDB, err := txq.CreateUserData(ctx, createUserDataParams)
+	if err != nil {
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.User{
+		ID:        userDB.ID,
+		FirstName: userDataDB.FirstName,
+		LastName:  userDataDB.LastName,
+		Email:     userDB.Email,
+	}, nil
+
 }
 
-func (ur *UserRespository) GetUserByEmail(email string) (*database.User, error) {
+func (ur *UserRespository) GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 
-	email = strings.ToLower(email)
-	user, err := ur.dbQuereis.GetUserByEmail(ur.ctx, email)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-
+	userDB, err := ur.dbQuereis.GetUserDataByEmail(ctx, email)
 	if err != nil {
 		return nil, err
 	}
 
-	return &user, nil
+	return &models.User{
+		ID:        userDB.ID,
+		FirstName: userDB.FirstName,
+		LastName:  userDB.LastName,
+		Email:     userDB.LastName,
+	}, nil
 }

@@ -87,18 +87,48 @@ func (as *AuthService) Register(ctx context.Context, email string, passowrd stri
 	return &user.ID, nil
 }
 
-func (as *AuthService) VerfiyUser(ctx context.Context, email string, token string) error {
-
-	verReq, err := getVerficationRequest(ctx, as.queries, token)
+func (as *AuthService) VerifyUser(ctx context.Context, token string) error {
+	tx, err := as.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("auth error: error getting verfication token: %w", err)
+		return fmt.Errorf("auth error: starting transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	txq := as.queries.WithTx(tx)
+
+	verReq, err := getVerficationRequest(ctx, txq, token)
+	if err != nil {
+		return fmt.Errorf("auth error: error getting verification token: %w", err)
 	}
 
-	if verReq.ExpiresAt.Compare(time.Now()) == -1 {
-		return fmt.Errorf("auth error: verfication token has expired")
+	if verReq.ExpiresAt.Before(time.Now()) {
+		return fmt.Errorf("auth error: verification token has expired")
 	}
 
-	as.queries.SetUserVerified(ctx, email)
+	user, err := txq.GetUserByID(ctx, verReq.UserID)
+	if err != nil {
+		return fmt.Errorf("failed to get user: %w", err)
+	}
+
+	if user.Verified {
+		return fmt.Errorf("user is already verified")
+	}
+
+	_, err = txq.SetUserVerified(ctx, verReq.UserID)
+	if err != nil {
+		return fmt.Errorf("auth error setting user verified: %w", err)
+	}
+
+	_, err = txq.DelteVerficationToken(ctx, token)
+	if err != nil {
+		return fmt.Errorf("auth error deleting verification token: %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("auth error committing changes: %w", err)
+	}
+
 	return nil
 }
 

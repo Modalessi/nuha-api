@@ -7,44 +7,180 @@ package database
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
 
+const createPasswordResetRequest = `-- name: CreatePasswordResetRequest :one
+INSERT INTO password_reset_tokens (
+    user_id,
+    token
+) VALUES (
+    $1,
+    $2
+) RETURNING id, user_id, token, used, expires_at, created_at
+`
+
+type CreatePasswordResetRequestParams struct {
+	UserID uuid.UUID
+	Token  string
+}
+
+func (q *Queries) CreatePasswordResetRequest(ctx context.Context, arg CreatePasswordResetRequestParams) (PasswordResetToken, error) {
+	row := q.db.QueryRowContext(ctx, createPasswordResetRequest, arg.UserID, arg.Token)
+	var i PasswordResetToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.Used,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
-    name,
     email,
     password
 ) VALUES (
     $1,
-    $2,
-    $3
-)
-RETURNING id, name, email, password, created_at
+    $2
+) RETURNING id, email, password, verified, created_at, updated_at
 `
 
 type CreateUserParams struct {
-	Name     string
 	Email    string
 	Password string
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, createUser, arg.Name, arg.Email, arg.Password)
+	row := q.db.QueryRowContext(ctx, createUser, arg.Email, arg.Password)
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
 		&i.Email,
 		&i.Password,
+		&i.Verified,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createUserData = `-- name: CreateUserData :one
+INSERT INTO users_data (
+    id,
+    first_name,
+    last_name
+) VALUES (
+    $1,
+    $2,
+    $3
+) RETURNING id, first_name, last_name, created_at, updated_at
+`
+
+type CreateUserDataParams struct {
+	ID        uuid.UUID
+	FirstName string
+	LastName  string
+}
+
+func (q *Queries) CreateUserData(ctx context.Context, arg CreateUserDataParams) (UsersDatum, error) {
+	row := q.db.QueryRowContext(ctx, createUserData, arg.ID, arg.FirstName, arg.LastName)
+	var i UsersDatum
+	err := row.Scan(
+		&i.ID,
+		&i.FirstName,
+		&i.LastName,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createUserSession = `-- name: CreateUserSession :one
+INSERT INTO sessions (
+    user_id,
+    token,
+    expires_at
+) VALUES (
+    $1,
+    $2,
+    $3
+) RETURNING id, user_id, token, expires_at, revoked, created_at, updated_at
+`
+
+type CreateUserSessionParams struct {
+	UserID    uuid.NullUUID
+	Token     string
+	ExpiresAt time.Time
+}
+
+func (q *Queries) CreateUserSession(ctx context.Context, arg CreateUserSessionParams) (Session, error) {
+	row := q.db.QueryRowContext(ctx, createUserSession, arg.UserID, arg.Token, arg.ExpiresAt)
+	var i Session
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.Revoked,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createVerificationRequest = `-- name: CreateVerificationRequest :one
+INSERT INTO verification_tokens (
+    user_id,
+    token
+) VALUES (
+    $1,
+    $2
+) RETURNING id, user_id, token, expires_at, created_at
+`
+
+type CreateVerificationRequestParams struct {
+	UserID uuid.UUID
+	Token  string
+}
+
+func (q *Queries) CreateVerificationRequest(ctx context.Context, arg CreateVerificationRequestParams) (VerificationToken, error) {
+	row := q.db.QueryRowContext(ctx, createVerificationRequest, arg.UserID, arg.Token)
+	var i VerificationToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const delteVerficationToken = `-- name: DelteVerficationToken :one
+DELETE FROM verification_tokens WHERE token = $1 RETURNING id, user_id, token, expires_at, created_at
+`
+
+func (q *Queries) DelteVerficationToken(ctx context.Context, token string) (VerificationToken, error) {
+	row := q.db.QueryRowContext(ctx, delteVerficationToken, token)
+	var i VerificationToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, name, email, password, created_at FROM users WHERE email = $1
+SELECT id, email, password, verified, created_at, updated_at FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -52,16 +188,17 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
 		&i.Email,
 		&i.Password,
+		&i.Verified,
 		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, name, email, password, created_at FROM users WHERE id = $1
+SELECT id, email, password, verified, created_at, updated_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -69,10 +206,111 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.Name,
 		&i.Email,
 		&i.Password,
+		&i.Verified,
 		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserDataByEmail = `-- name: GetUserDataByEmail :one
+SELECT users.id, first_name, last_name, email, users.created_at, users.updated_at FROM users
+JOIN users_data ON users.id = users_data.id
+WHERE email = $1
+`
+
+type GetUserDataByEmailRow struct {
+	ID        uuid.UUID
+	FirstName string
+	LastName  string
+	Email     string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (q *Queries) GetUserDataByEmail(ctx context.Context, email string) (GetUserDataByEmailRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserDataByEmail, email)
+	var i GetUserDataByEmailRow
+	err := row.Scan(
+		&i.ID,
+		&i.FirstName,
+		&i.LastName,
+		&i.Email,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserDataByID = `-- name: GetUserDataByID :one
+SELECT id, first_name, last_name, created_at, updated_at FROM users_data WHERE id = $1
+`
+
+func (q *Queries) GetUserDataByID(ctx context.Context, id uuid.UUID) (UsersDatum, error) {
+	row := q.db.QueryRowContext(ctx, getUserDataByID, id)
+	var i UsersDatum
+	err := row.Scan(
+		&i.ID,
+		&i.FirstName,
+		&i.LastName,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getVerficationToken = `-- name: GetVerficationToken :one
+SELECT id, user_id, token, expires_at, created_at FROM verification_tokens WHERE token = $1
+`
+
+func (q *Queries) GetVerficationToken(ctx context.Context, token string) (VerificationToken, error) {
+	row := q.db.QueryRowContext(ctx, getVerficationToken, token)
+	var i VerificationToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const setSessionRevoked = `-- name: SetSessionRevoked :one
+UPDATE sessions SET revoked = TRUE WHERE token = $1 RETURNING id, user_id, token, expires_at, revoked, created_at, updated_at
+`
+
+func (q *Queries) SetSessionRevoked(ctx context.Context, token string) (Session, error) {
+	row := q.db.QueryRowContext(ctx, setSessionRevoked, token)
+	var i Session
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.Revoked,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const setUserVerified = `-- name: SetUserVerified :one
+UPDATE users SET verified = TRUE WHERE id = $1 RETURNING id, email, password, verified, created_at, updated_at
+`
+
+func (q *Queries) SetUserVerified(ctx context.Context, id uuid.UUID) (User, error) {
+	row := q.db.QueryRowContext(ctx, setUserVerified, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Password,
+		&i.Verified,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

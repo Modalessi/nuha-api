@@ -12,14 +12,18 @@ competitive programming
   - register, sign in. [DONE]
   - restore password method
   - verify email method
-  
+
+
+- Better Storage Interface
+
+
 - Submissions (6/ 6)
   - send submissions [DONE]
   - get single submission [DONE]
   - get user submssions [DONE]
   - get all submsssions [DONE]
   - Pagination [DONE]
-  
+
 - Problems (5 / 5)
   - admin create [DONE]
   - get problems list [DONE]
@@ -30,7 +34,7 @@ competitive programming
 
 
 
-### Data Design 
+### Data Design
 
 #### Problem
 
@@ -71,7 +75,7 @@ competitive programming
 
 
 #### Submission Results
-- id 
+- id
 - submission_id (submission.id foriegn key)
 - judge_token string
 - test_case_input string
@@ -91,7 +95,7 @@ competitive programming
 
 - endpoint recives submissiosn (langauge, code, problemid)
 - create the submission
-- store it 
+- store it
 - pass the submissionJobs to (submissionsPipeline)
 - return the submission id
 
@@ -100,7 +104,7 @@ a piple line that runs in the background
 takes a submission job and proccess in three steps
 
 
-submissionsChan                                                               resultsChan 
+submissionsChan                                                               resultsChan
 ----------------------->|send submssions to judge api, and take the tokens| ---------------->
 
 resultsChan                                                                  dbUpdateChan
@@ -115,7 +119,7 @@ so we have three chanels
 - resultsChan
 - dbUpdateChan
 
-and three background porccess 
+and three background porccess
 - submissionProcessor
 - resultProcessor
 - dbWriter

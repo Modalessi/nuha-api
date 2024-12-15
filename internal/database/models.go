@@ -10,6 +10,15 @@ import (
 	"github.com/google/uuid"
 )
 
+type PasswordResetToken struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	Token     string
+	Used      bool
+	ExpiresAt time.Time
+	CreatedAt time.Time
+}
+
 type Problem struct {
 	ID          uuid.UUID
 	Title       string
@@ -26,6 +35,16 @@ type ProblemsDescription struct {
 	Description string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+type Session struct {
+	ID        uuid.UUID
+	UserID    uuid.NullUUID
+	Token     string
+	ExpiresAt time.Time
+	Revoked   bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type Submission struct {
@@ -64,8 +83,25 @@ type TestCase struct {
 
 type User struct {
 	ID        uuid.UUID
-	Name      string
 	Email     string
 	Password  string
+	Verified  bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type UsersDatum struct {
+	ID        uuid.UUID
+	FirstName string
+	LastName  string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type VerificationToken struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	Token     string
+	ExpiresAt time.Time
 	CreatedAt time.Time
 }

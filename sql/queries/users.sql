@@ -8,8 +8,19 @@ INSERT INTO users (
 ) RETURNING *;
 
 
+-- name: CreateUserData :one
+INSERT INTO users_data (
+    id,
+    first_name,
+    last_name
+) VALUES (
+    $1,
+    $2,
+    $3
+) RETURNING *;
+
 -- name: SetUserVerified :one
-UPDATE users SET verified = TRUE WHERE email = $1 RETURNING *;
+UPDATE users SET verified = TRUE WHERE id = $1 RETURNING *;
 
 
 -- name: CreateUserSession :one
@@ -55,3 +66,15 @@ SELECT * FROM users WHERE email = $1;
 
 -- name: GetUserByID :one
 SELECT * FROM users WHERE id = $1;
+
+-- name: GetUserDataByID :one
+SELECT * FROM users_data WHERE id = $1;
+
+-- name: GetUserDataByEmail :one
+SELECT users.id, first_name, last_name, email, users.created_at, users.updated_at FROM users
+JOIN users_data ON users.id = users_data.id
+WHERE email = $1;
+
+
+-- name: DelteVerficationToken :one
+DELETE FROM verification_tokens WHERE token = $1 RETURNING *;

@@ -4,9 +4,12 @@ import (
 	"database/sql"
 	"net/http"
 
+	"github.com/Modalessi/nuha-api/internal/auth"
 	"github.com/Modalessi/nuha-api/internal/database"
+	"github.com/Modalessi/nuha-api/internal/email-service"
 	"github.com/Modalessi/nuha-api/internal/judgeAPI"
 	submissionsPL "github.com/Modalessi/nuha-api/internal/nuha-api/submissions_pipeline"
+	"github.com/Modalessi/nuha-api/internal/repositories"
 )
 
 type NuhaServer struct {
@@ -15,6 +18,8 @@ type NuhaServer struct {
 	SubmissionsPL *submissionsPL.SubmissionsPipeline
 	DB            *sql.DB
 	DBQueries     *database.Queries
+	Auth          *auth.AuthService
+	UserRepo      *repositories.UserRespository
 	JWTSecret     string
 	AdminEmail    string
 }
@@ -24,12 +29,17 @@ func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, j
 
 	submissionsPipeline := submissionsPL.NewSubmissionPipeline(ja, db, dbQuereis)
 
+	authService := auth.NewAuthService(db, dbQuereis, &email.EmailService{})
+	userRepo := repositories.NewUserRespository(db, dbQuereis)
+
 	ns := NuhaServer{
 		Server:        serverMux,
 		JudgeAPI:      ja,
 		SubmissionsPL: submissionsPipeline,
 		DB:            db,
 		DBQueries:     dbQuereis,
+		Auth:          authService,
+		UserRepo:      userRepo,
 		JWTSecret:     jwtSecret,
 		AdminEmail:    adminEmail,
 	}
@@ -38,6 +48,7 @@ func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, j
 
 	serverMux.HandleFunc("POST /login", withServer(&ns, login))
 	serverMux.HandleFunc("POST /register", withServer(&ns, register))
+	serverMux.HandleFunc("GET /verify/", withServer(&ns, verifyEmail))
 
 	serverMux.HandleFunc("GET /protected", authorized(withServer(&ns, protected), ns.JWTSecret))
 
