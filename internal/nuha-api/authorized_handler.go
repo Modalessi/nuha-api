@@ -5,11 +5,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Modalessi/nuha-api/internal"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/Modalessi/nuha-api/internal/auth"
 )
 
-func authorized(next http.HandlerFunc, jwtSecret string) http.HandlerFunc {
+func authorized(next http.HandlerFunc, auth *auth.AuthService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
@@ -19,20 +18,13 @@ func authorized(next http.HandlerFunc, jwtSecret string) http.HandlerFunc {
 
 		tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
 
-		token, err := internal.VerfiyToken(tokenString, jwtSecret)
+		userEmail, err := auth.ValidateToken(r.Context(), tokenString)
 		if err != nil {
 			respondWithError(w, 401, INVALID_TOKEN_ERROR)
 			return
 		}
 
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			respondWithError(w, 401, INVALID_TOKEN_ERROR)
-			return
-		}
-
-		ctx := context.WithValue(r.Context(), userEmailKey, claims["sub"].(string))
-		ctx = context.WithValue(ctx, userNameKey, claims["name"].(string))
+		ctx := context.WithValue(r.Context(), userEmailKey, userEmail)
 
 		next(w, r.WithContext(ctx))
 	}

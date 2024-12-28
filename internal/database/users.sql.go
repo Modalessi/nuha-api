@@ -114,7 +114,7 @@ INSERT INTO sessions (
 `
 
 type CreateUserSessionParams struct {
-	UserID    uuid.NullUUID
+	UserID    uuid.UUID
 	Token     string
 	ExpiresAt time.Time
 }
@@ -175,6 +175,25 @@ func (q *Queries) DelteVerficationToken(ctx context.Context, token string) (Veri
 		&i.Token,
 		&i.ExpiresAt,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getSession = `-- name: GetSession :one
+SELECT id, user_id, token, expires_at, revoked, created_at, updated_at FROM sessions WHERE token = $1
+`
+
+func (q *Queries) GetSession(ctx context.Context, token string) (Session, error) {
+	row := q.db.QueryRowContext(ctx, getSession, token)
+	var i Session
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.Revoked,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

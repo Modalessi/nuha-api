@@ -39,7 +39,7 @@ type ProblemsDescription struct {
 
 type Session struct {
 	ID        uuid.UUID
-	UserID    uuid.NullUUID
+	UserID    uuid.UUID
 	Token     string
 	ExpiresAt time.Time
 	Revoked   bool

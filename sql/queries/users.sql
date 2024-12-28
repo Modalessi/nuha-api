@@ -56,6 +56,10 @@ INSERT INTO password_reset_tokens (
 UPDATE sessions SET revoked = TRUE WHERE token = $1 RETURNING *;;
 
 
+-- name: GetSession :one
+SELECT * FROM sessions WHERE token = $1;
+
+
 -- name: GetVerficationToken :one
 SELECT * FROM verification_tokens WHERE token = $1;
 

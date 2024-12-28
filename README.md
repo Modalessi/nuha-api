@@ -8,8 +8,9 @@ competitive programming
 
 
 - CORS configuration
-- Auth (1/ 3)
-  - register, sign in. [DONE]
+- Auth (2/ 4)
+  - register [DONE]
+  - login [DONE]
   - restore password method
   - verify email method
 

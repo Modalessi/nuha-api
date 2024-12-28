@@ -53,15 +53,13 @@ func submitSolution(ns *NuhaServer, w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 
-	// get user id
-	ur := repositories.NewUserRespository(r.Context(), ns.DBQueries)
 	userEmail, ok := r.Context().Value(userEmailKey).(string)
 	if !ok {
 		respondWithError(w, 500, SERVER_ERROR)
 		return fmt.Errorf("error getting user email from context")
 	}
 
-	user, err := ur.GetUserByEmail(userEmail)
+	user, err := ns.UserRepo.GetUserByEmail(r.Context(), userEmail)
 	if err != nil {
 		respondWithError(w, 404, EntityDoesNotExistError("USER"))
 		return err

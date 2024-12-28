@@ -5,8 +5,6 @@ import (
 	"net/http"
 
 	"github.com/Modalessi/nuha-api/internal"
-	"github.com/Modalessi/nuha-api/internal/repositories"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func login(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
@@ -23,8 +21,7 @@ func login(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	ur := repositories.NewUserRespository(r.Context(), ns.DBQueries)
-	user, err := ur.GetUserByEmail(loginData.Email)
+	user, err := ns.UserRepo.GetUserByEmail(r.Context(), loginData.Email)
 	if err != nil {
 		respondWithError(w, 500, SERVER_ERROR)
 		return err
@@ -35,29 +32,22 @@ func login(ns *NuhaServer, w http.ResponseWriter, r *http.Request) error {
 		return nil
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginData.Password))
+	// what you wann do is use the auth service to login
+	// return if error if it was not successful
+	// return token if it was successful
+
+	token, err := ns.Auth.Login(r.Context(), loginData.Email, loginData.Password)
 	if err != nil {
-		respondWithError(w, 401, WRONG_CREDINTALS_ERROR)
+		respondWithError(w, 400, err)
 		return err
 	}
 
-	// create jwt token
-	token, err := internal.NewJWTTokenWithClaims(user.Name, user.Email, ns.JWTSecret)
-	if err != nil {
-		respondWithError(w, 500, SERVER_ERROR)
-		return err
-	}
-
-	respone := struct {
+	response := struct {
 		Token string `json:"token"`
-		Email string `json:"email"`
-		Name  string `json:"name"`
 	}{
 		Token: token,
-		Email: user.Email,
-		Name:  user.Name,
 	}
 
-	respondWithJson(w, 200, &internal.JsonWrapper{Data: respone})
+	respondWithJson(w, 200, &internal.JsonWrapper{Data: response})
 	return nil
 }

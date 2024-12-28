@@ -1,4 +1,4 @@
-package internal
+package auth
 
 import (
 	"fmt"
@@ -7,11 +7,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func NewJWTTokenWithClaims(name string, email string, secretKey string) (string, error) {
+func NewJWTTokenWithClaims(email string, exp time.Time, secretKey string) (string, error) {
 	claims := jwt.MapClaims{
-		"sub":  email,
-		"name": name,
-		"exp":  time.Now().Add(time.Hour * 24).Unix(),
+		"sub": email,
+		"exp": exp.Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

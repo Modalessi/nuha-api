@@ -3,6 +3,7 @@ package nuha
 import (
 	"database/sql"
 	"net/http"
+	"time"
 
 	"github.com/Modalessi/nuha-api/internal/auth"
 	"github.com/Modalessi/nuha-api/internal/database"
@@ -29,7 +30,12 @@ func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, j
 
 	submissionsPipeline := submissionsPL.NewSubmissionPipeline(ja, db, dbQuereis)
 
-	authService := auth.NewAuthService(db, dbQuereis, &email.EmailService{})
+	authConfig := auth.AuthServiceConfig{
+		JWTSecretKey:              jwtSecret,
+		TokensExpirationsDuration: (time.Hour * 24),
+	}
+
+	authService := auth.NewAuthService(db, dbQuereis, &email.EmailService{}, authConfig)
 	userRepo := repositories.NewUserRespository(db, dbQuereis)
 
 	ns := NuhaServer{
@@ -50,17 +56,17 @@ func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, j
 	serverMux.HandleFunc("POST /register", withServer(&ns, register))
 	serverMux.HandleFunc("GET /verify/", withServer(&ns, verifyEmail))
 
-	serverMux.HandleFunc("GET /protected", authorized(withServer(&ns, protected), ns.JWTSecret))
+	serverMux.HandleFunc("GET /protected", authorized(withServer(&ns, protected), ns.Auth))
 
-	serverMux.HandleFunc("POST /submit", authorized(withServer(&ns, submitSolution), ns.JWTSecret))
-	serverMux.HandleFunc("GET /submit", authorized(withServer(&ns, getSubmission), ns.JWTSecret))
+	serverMux.HandleFunc("POST /submit", authorized(withServer(&ns, submitSolution), ns.Auth))
+	serverMux.HandleFunc("GET /submit", authorized(withServer(&ns, getSubmission), ns.Auth))
 
-	serverMux.HandleFunc("POST /problem", authorized(adminOnly(withServer(&ns, createProblem), adminEmail), ns.JWTSecret))
+	serverMux.HandleFunc("POST /problem", authorized(adminOnly(withServer(&ns, createProblem), adminEmail), ns.Auth))
 	serverMux.HandleFunc("GET /problem", withServer(&ns, getProblem))
-	serverMux.HandleFunc("DELETE /problem", authorized(adminOnly(withServer(&ns, deleteProblem), ns.AdminEmail), ns.JWTSecret))
-	serverMux.HandleFunc("PUT /problem", authorized(adminOnly(withServer(&ns, updateProblem), ns.AdminEmail), ns.JWTSecret))
+	serverMux.HandleFunc("DELETE /problem", authorized(adminOnly(withServer(&ns, deleteProblem), ns.AdminEmail), ns.Auth))
+	serverMux.HandleFunc("PUT /problem", authorized(adminOnly(withServer(&ns, updateProblem), ns.AdminEmail), ns.Auth))
 
-	serverMux.HandleFunc("POST /testcase", authorized(adminOnly(withServer(&ns, addTestCases), adminEmail), ns.JWTSecret))
+	serverMux.HandleFunc("POST /testcase", authorized(adminOnly(withServer(&ns, addTestCases), adminEmail), ns.Auth))
 
 	ns.SubmissionsPL.Start()
 	return &ns
