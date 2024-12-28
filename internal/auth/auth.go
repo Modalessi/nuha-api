@@ -183,6 +183,40 @@ func (as *AuthService) Login(ctx context.Context, email string, password string)
 	return token, nil
 }
 
+func (as *AuthService) Logout(ctx context.Context, token string) error {
+	tx, err := as.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("auth error: starting transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	txq := as.queries.WithTx(tx)
+
+	session, err := txq.GetSession(ctx, token)
+	if err != nil {
+		return fmt.Errorf("auth error: getting session from db: %w", err)
+	}
+
+	if session.Revoked {
+		return fmt.Errorf("auth error: user already logged out")
+	}
+
+	if session.ExpiresAt.Before(time.Now()) {
+		return fmt.Errorf("auth error: session already expired")
+	}
+
+	_, err = txq.SetSessionRevoked(ctx, token)
+	if err != nil {
+		return fmt.Errorf("auth error: revoking session: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("auth error: committing transaction: %w", err)
+	}
+
+	return nil
+}
+
 func (as *AuthService) ValidateToken(ctx context.Context, token string) (string, error) {
 	// first verify token
 	jwtToken, err := VerfiyToken(token, as.config.JWTSecretKey)

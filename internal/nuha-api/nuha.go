@@ -53,6 +53,7 @@ func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, j
 	serverMux.HandleFunc("GET /healthz", checkHealth)
 
 	serverMux.HandleFunc("POST /login", withServer(&ns, login))
+	serverMux.HandleFunc("POST /logout", authorized(withServer(&ns, logout), ns.Auth))
 	serverMux.HandleFunc("POST /register", withServer(&ns, register))
 	serverMux.HandleFunc("GET /verify/", withServer(&ns, verifyEmail))
 

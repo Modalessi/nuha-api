@@ -24,7 +24,8 @@ func authorized(next http.HandlerFunc, auth *auth.AuthService) http.HandlerFunc 
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), userEmailKey, userEmail)
+		ctx := context.WithValue(r.Context(), USER_EMAIL_CONTEXT_KEY, userEmail)
+		ctx = context.WithValue(ctx, USER_TOKEN_CONTEXT_KEY, tokenString)
 
 		next(w, r.WithContext(ctx))
 	}

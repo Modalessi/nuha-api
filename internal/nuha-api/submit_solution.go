@@ -53,7 +53,7 @@ func submitSolution(ns *NuhaServer, w http.ResponseWriter, r *http.Request) erro
 		return err
 	}
 
-	userEmail, ok := r.Context().Value(userEmailKey).(string)
+	userEmail, ok := r.Context().Value(USER_EMAIL_CONTEXT_KEY).(string)
 	if !ok {
 		respondWithError(w, 500, SERVER_ERROR)
 		return fmt.Errorf("error getting user email from context")

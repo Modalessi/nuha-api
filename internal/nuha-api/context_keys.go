@@ -3,6 +3,6 @@ package nuha
 type contextKey string
 
 const (
-	userEmailKey contextKey = "user_email"
-	userNameKey  contextKey = "user_name"
+	USER_EMAIL_CONTEXT_KEY contextKey = "user_email"
+	USER_TOKEN_CONTEXT_KEY contextKey = "user_token"
 )

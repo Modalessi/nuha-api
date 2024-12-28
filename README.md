@@ -8,11 +8,12 @@ competitive programming
 
 
 - CORS configuration
-- Auth (2/ 4)
+- Auth (4 / 5)
   - register [DONE]
   - login [DONE]
+  - logout [DONE]
   - restore password method
-  - verify email method
+  - verify email method [DONE]
 
 
 - Better Storage Interface
