@@ -14,7 +14,8 @@ import (
 )
 
 type NuhaServer struct {
-	Server        *http.ServeMux
+	Server        http.Handler
+	serverMux     *http.ServeMux
 	JudgeAPI      *judgeAPI.JudgeAPI
 	SubmissionsPL *submissionsPL.SubmissionsPipeline
 	DB            *sql.DB
@@ -23,6 +24,29 @@ type NuhaServer struct {
 	UserRepo      *repositories.UserRespository
 	JWTSecret     string
 	AdminEmail    string
+}
+
+// this should be better
+func CORSMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+		w.Header().Set("Access-Control-Max-Age", "300")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, jwtSecret string, adminEmail string) *NuhaServer {
@@ -39,7 +63,7 @@ func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, j
 	userRepo := repositories.NewUserRespository(db, dbQuereis)
 
 	ns := NuhaServer{
-		Server:        serverMux,
+		serverMux:     serverMux,
 		JudgeAPI:      ja,
 		SubmissionsPL: submissionsPipeline,
 		DB:            db,
@@ -49,6 +73,8 @@ func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, j
 		JWTSecret:     jwtSecret,
 		AdminEmail:    adminEmail,
 	}
+
+	corsHandler := CORSMiddleware(serverMux)
 
 	serverMux.HandleFunc("GET /healthz", checkHealth)
 
@@ -70,8 +96,9 @@ func NewServer(ja *judgeAPI.JudgeAPI, db *sql.DB, dbQuereis *database.Queries, j
 	serverMux.HandleFunc("POST /testcase", authorized(adminOnly(withServer(&ns, addTestCases), adminEmail), ns.Auth))
 
 	ns.SubmissionsPL.Start()
-	return &ns
 
+	ns.Server = corsHandler
+	return &ns
 }
 
 func (ns *NuhaServer) GetServer() http.Handler {

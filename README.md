@@ -36,6 +36,8 @@ competitive programming
 
 
 
+
+
 ### Data Design
 
 #### Problem
@@ -50,6 +52,7 @@ competitive programming
 - difficulty string
 - time limit float
 - memory limit float
+- public bool
 - created_at
 - updated_at
 
@@ -65,7 +68,7 @@ competitive programming
   - problem_id primary (problem.id foregin key)
   - description blob
 
-
+****
 #### Submission
 - id
 - problemId (problems.id foreign key)
@@ -89,6 +92,46 @@ competitive programming
 - judge_respones JSONB
 - created_at timestamp
 
+
+
+#### Contest
+- id uuid
+- title string
+- problems []Problems.id
+- start_time data
+- particpants []Users.id
+- duration time.Duration
+
+
+## Contest Flow
+
+### creating
+1. create new contest POST /contest
+2. add problems to the contest PUT /contest
+3. only can add not public problems
+
+
+### particpating
+
+#### before start
+1. get /contest (returns all contests titles, number of participants ,ids)
+2. post /participate?id=<contest_id>
+
+
+1. contest start
+2. GET /contest?id=<contest_id 
+   1. check the user is participated in the contest 
+   2. if participated returns all the contest deatils (title, problems, elapsed time)
+3. user chooses a problem
+4. GET /problem?id=<problem_id>
+   1. check the user is particpated 
+   2. if participated he get the problem back
+   3. if not he get no access error
+5. submit solution POST /submit 
+   1. same check the user is particpated in the combeition
+   2. if not return an error
+   3. if yes register the submission with the contest id
+6. 
 
 
 

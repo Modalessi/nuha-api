@@ -44,9 +44,6 @@ func main() {
 	adminEmail := os.Getenv("ADMIN_EMAIL")
 	utils.AssertOn(adminEmail != "", "somethign went wrong when reading 'ADMIN_EMAIL' env variable")
 
-	problemSetBucketName := os.Getenv("AWS_PROBLEMSET_BUCKET")
-	utils.AssertOn(problemSetBucketName != "", "somethign went wrong when reading 'AWS_PROBLEMSET_BUCKET' env variable")
-
 	nuhaServer := nuha.NewServer(judgeAPI, db, dbQueries, JWTSecret, adminEmail)
 
 	// TODO: gracful shut down for SIGINT, SIGTERM

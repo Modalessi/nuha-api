@@ -74,7 +74,7 @@ func submitSolution(ns *NuhaServer, w http.ResponseWriter, r *http.Request) erro
 	// create the submiios here
 	submission := models.NewSubmission(problem.ID, user.ID, submissionData.Language, submissionData.Code)
 
-	// store it here
+	// TODO: enhance this stupd flow
 	createSubmissionParams := &database.CreateSubmissionParams{
 		ProblemID:  problem.ID,
 		UserID:     user.ID,
@@ -82,6 +82,7 @@ func submitSolution(ns *NuhaServer, w http.ResponseWriter, r *http.Request) erro
 		SourceCode: submission.SourceCode,
 		Status:     string(submission.Status),
 	}
+
 	submissionDB, err := ns.DBQueries.CreateSubmission(r.Context(), *createSubmissionParams)
 	if err != nil {
 		respondWithError(w, 500, SERVER_ERROR)
